@@ -368,7 +368,7 @@ export default function SettleUpPage() {
   return (
     <div className="flex flex-col min-h-screen">
       <AppHeader />
-      <main className="flex-grow container mx-auto px-4 py-8 space-y-8 max-w-6xl"> {/* Increased max-width */}
+      <main className="flex-grow container mx-auto px-4 py-8 space-y-8 max-w-6xl">
         
         <Card>
           <CardHeader>
@@ -377,12 +377,12 @@ export default function SettleUpPage() {
               Project Data Management
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-col sm:flex-row gap-4 items-center">
+          <CardContent className="flex flex-col sm:flex-row gap-4 items-start sm:items-center flex-wrap">
             <Button variant="outline" onClick={handleSaveProject} className="w-full sm:w-auto">
                 <Save className="mr-2 h-4 w-4" />
                 Save Project to JSON
             </Button>
-            <div className="flex flex-col items-start w-full sm:w-auto">
+            <div className="flex flex-col items-start w-full sm:w-auto sm:flex-grow">
                 <Label htmlFor="load-project-input" className="mb-1 text-sm font-medium">Load Project from JSON:</Label>
                 <Input
                     id="load-project-input"
@@ -393,29 +393,30 @@ export default function SettleUpPage() {
                     className="w-full file:mr-2 file:py-1 file:px-2 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
                 />
             </div>
-             <Button variant="outline" onClick={loadDemoData} size="sm" className="w-full sm:w-auto mt-2 sm:mt-0 self-end sm:self-center">
+             <Button variant="outline" onClick={loadDemoData} size="sm" className="w-full sm:w-auto mt-2 sm:mt-0 sm:self-end">
                 <TestTubeDiagonal className="mr-2 h-4 w-4" />
                 Load Demo Data
             </Button>
           </CardContent>
         </Card>
         
-        <AttendeeManager attendees={attendees} onAttendeesChange={handleAttendeesChange} />
-        
-        <GroupManager 
-          attendees={attendees} 
-          groups={displayedGroups} 
-          onAddGroup={handleAddGroup}
-          onUpdateGroup={handleUpdateGroup}
-          onDeleteGroup={handleDeleteGroup}
-          onEditGroup={handleSetEditingGroup}
-          groupToEdit={groupToEdit}
-          onCancelEdit={() => setEditingGroupId(null)}
-          reservedGroupName={ALL_ATTENDEES_GROUP_NAME}
-        />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+          <AttendeeManager attendees={attendees} onAttendeesChange={handleAttendeesChange} />
+          <GroupManager 
+            attendees={attendees} 
+            groups={displayedGroups} 
+            onAddGroup={handleAddGroup}
+            onUpdateGroup={handleUpdateGroup}
+            onDeleteGroup={handleDeleteGroup}
+            onEditGroup={handleSetEditingGroup}
+            groupToEdit={groupToEdit}
+            onCancelEdit={() => setEditingGroupId(null)}
+            reservedGroupName={ALL_ATTENDEES_GROUP_NAME}
+          />
+        </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-          <div className="lg:col-span-1"> {/* Ensure ExpenseForm takes one column */}
+          <div className="lg:col-span-1">
             <ExpenseForm 
               attendees={attendees} 
               groups={displayedGroups} 
@@ -425,9 +426,8 @@ export default function SettleUpPage() {
               onCancelEdit={() => handleSetEditingExpense(null)}
             />
           </div>
-          {/* ExpenseSummaryTable only rendered if expenses exist, takes the second column on large screens */}
           {expenses.length > 0 && (
-            <div className="lg:col-span-1"> {/* Ensure ExpenseSummaryTable takes one column */}
+            <div className="lg:col-span-1">
               <ExpenseSummaryTable 
                 expenses={expenses} 
                 onDeleteExpense={handleDeleteExpense}
