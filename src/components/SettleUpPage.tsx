@@ -1,8 +1,8 @@
 
 'use client';
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
-import type { Expense, Settlement, Balance, AttendeeGroup } from '@/lib/types';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import type { Expense, Settlement, Balance, AttendeeGroup, ProjectData } from '@/lib/types';
 import { calculateBalances, optimizeTransactions, consolidateIndividualPayments } from '@/lib/calculations';
 import { AppHeader } from '@/components/AppHeader';
 import { AttendeeManager } from '@/components/AttendeeManager';
@@ -11,12 +11,16 @@ import { ExpenseForm } from '@/components/ExpenseForm';
 import { ExpenseSummaryTable } from '@/components/ExpenseSummaryTable';
 import { BalanceSheetDisplay } from '@/components/BalanceSheetDisplay';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Calculator, TestTubeDiagonal } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Calculator, TestTubeDiagonal, Save, Upload, FileJson } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Input } from '@/components/ui/input'; // For file input styling if needed
+import { Label } from '@/components/ui/label';
+
 
 const ALL_ATTENDEES_GROUP_ID = 'system-all-attendees';
 const ALL_ATTENDEES_GROUP_NAME = 'All Attendees';
+const PROJECT_DATA_VERSION = 1;
 
 const DEMO_ATTENDEES = ['Alice', 'Bob', 'Charlie', 'David', 'Eve'];
 const DEMO_EXPENSES_DATA: Omit<Expense, 'id'>[] = [
@@ -39,6 +43,8 @@ export default function SettleUpPage() {
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
 
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
 
   const handleAttendeesChange = useCallback((newAttendees: string[]) => {
     setAttendees(newAttendees);
@@ -242,6 +248,88 @@ export default function SettleUpPage() {
     }, 0);
   };
 
+  const handleSaveProject = () => {
+    const projectData: ProjectData = {
+      version: PROJECT_DATA_VERSION,
+      attendees,
+      userCreatedGroups,
+      expenses,
+    };
+    const jsonString = JSON.stringify(projectData, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'splitwise_project.json';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+    toast({ title: 'Project Saved', description: 'Project data downloaded as splitwise_project.json.' });
+  };
+
+  const handleLoadProjectFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result;
+        if (typeof text !== 'string') {
+          throw new Error('File content is not a string.');
+        }
+        const loadedData = JSON.parse(text) as Partial<ProjectData>;
+
+        if (
+          !loadedData ||
+          typeof loadedData !== 'object' ||
+          !Array.isArray(loadedData.attendees) ||
+          !Array.isArray(loadedData.userCreatedGroups) ||
+          !Array.isArray(loadedData.expenses) ||
+          (loadedData.version && typeof loadedData.version !== 'number')
+        ) {
+          throw new Error('Invalid project file structure.');
+        }
+        
+        // Basic validation for content (can be more thorough)
+        const isValidAttendees = loadedData.attendees.every(a => typeof a === 'string');
+        // Add more validation for groups and expenses if needed
+
+        if (!isValidAttendees) {
+            throw new Error('Invalid data within project file.');
+        }
+
+        setAttendees(loadedData.attendees as string[]);
+        setUserCreatedGroups(loadedData.userCreatedGroups as AttendeeGroup[]);
+        setExpenses(loadedData.expenses as Expense[]);
+        
+        setBalances([]);
+        setSettlements([]);
+        setEditingExpenseId(null);
+        setEditingGroupId(null);
+        
+        toast({ title: 'Project Loaded', description: 'Project data loaded successfully.' });
+      } catch (error) {
+        console.error("Error loading project file:", error);
+        let errorMessage = 'Failed to load project file.';
+        if (error instanceof Error) {
+            errorMessage = error.message.includes('Invalid') ? error.message : 'File is not valid JSON or has incorrect structure.';
+        }
+        toast({
+          title: 'Load Error',
+          description: errorMessage,
+          variant: 'destructive',
+        });
+      } finally {
+        // Reset file input value so the same file can be loaded again if needed
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+      }
+    };
+    reader.readAsText(file);
+  };
+
 
   const allAttendeesGroupForDisplay: AttendeeGroup = useMemo(() => ({
     id: ALL_ATTENDEES_GROUP_ID,
@@ -268,12 +356,12 @@ export default function SettleUpPage() {
 
   const handleSetEditingExpense = (id: string | null) => {
     setEditingExpenseId(id);
-    if (id !== null) setEditingGroupId(null); // Clear group edit if starting expense edit
+    if (id !== null) setEditingGroupId(null); 
   };
 
   const handleSetEditingGroup = (id: string | null) => {
     setEditingGroupId(id);
-    if (id !== null) setEditingExpenseId(null); // Clear expense edit if starting group edit
+    if (id !== null) setEditingExpenseId(null); 
   };
 
 
@@ -281,12 +369,36 @@ export default function SettleUpPage() {
     <div className="flex flex-col min-h-screen">
       <AppHeader />
       <main className="flex-grow container mx-auto px-4 py-8 space-y-8 max-w-5xl">
-        <div className="flex justify-end">
-            <Button variant="outline" onClick={loadDemoData} size="sm">
+        
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center text-xl">
+              <FileJson className="mr-2 h-5 w-5 text-primary" />
+              Project Data Management
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col sm:flex-row gap-4 items-center">
+            <Button variant="outline" onClick={handleSaveProject} className="w-full sm:w-auto">
+                <Save className="mr-2 h-4 w-4" />
+                Save Project to JSON
+            </Button>
+            <div className="flex flex-col items-start w-full sm:w-auto">
+                <Label htmlFor="load-project-input" className="mb-1 text-sm font-medium">Load Project from JSON:</Label>
+                <Input
+                    id="load-project-input"
+                    type="file"
+                    accept=".json"
+                    onChange={handleLoadProjectFile}
+                    ref={fileInputRef}
+                    className="w-full file:mr-2 file:py-1 file:px-2 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                />
+            </div>
+             <Button variant="outline" onClick={loadDemoData} size="sm" className="w-full sm:w-auto mt-2 sm:mt-0 self-end sm:self-center">
                 <TestTubeDiagonal className="mr-2 h-4 w-4" />
                 Load Demo Data
             </Button>
-        </div>
+          </CardContent>
+        </Card>
         
         <AttendeeManager attendees={attendees} onAttendeesChange={handleAttendeesChange} />
         

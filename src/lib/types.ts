@@ -24,3 +24,10 @@ export interface AttendeeGroup {
   members: string[]; // Attendee names
   isSystemGroup?: boolean; // Flag for special system-managed groups like "All Attendees"
 }
+
+export interface ProjectData {
+  version: number;
+  attendees: string[];
+  userCreatedGroups: AttendeeGroup[];
+  expenses: Expense[];
+}
