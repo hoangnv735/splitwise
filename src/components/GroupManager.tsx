@@ -10,26 +10,66 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import { Users, PlusCircle, Trash2, CheckSquare, Square, Info } from 'lucide-react';
+import { Users, PlusCircle, Trash2, CheckSquare, Square, Info, Pencil, XCircle } from 'lucide-react';
 import type { AttendeeGroup } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
 
 interface GroupManagerProps {
   attendees: string[];
   groups: AttendeeGroup[];
   onAddGroup: (groupName: string, members: string[]) => void;
+  onUpdateGroup: (group: AttendeeGroup) => void;
   onDeleteGroup: (groupId: string) => void;
+  onEditGroup: (groupId: string) => void;
+  groupToEdit: AttendeeGroup | null;
+  onCancelEdit: () => void;
   reservedGroupName?: string; 
 }
 
-export function GroupManager({ attendees, groups, onAddGroup, onDeleteGroup, reservedGroupName }: GroupManagerProps) {
+export function GroupManager({ 
+  attendees, 
+  groups, 
+  onAddGroup, 
+  onUpdateGroup, 
+  onDeleteGroup, 
+  onEditGroup,
+  groupToEdit,
+  onCancelEdit,
+  reservedGroupName 
+}: GroupManagerProps) {
   const [newGroupName, setNewGroupName] = useState('');
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const { toast } = useToast();
+  const isEditing = !!groupToEdit;
 
   useEffect(() => {
+    // Filter selected members if attendees list changes
     setSelectedMembers(prevSelected => prevSelected.filter(member => attendees.includes(member)));
   }, [attendees]);
+
+  useEffect(() => {
+    if (isEditing && groupToEdit) {
+      setNewGroupName(groupToEdit.name);
+      // Ensure selected members are valid within the current attendees list
+      setSelectedMembers(groupToEdit.members.filter(member => attendees.includes(member)));
+    } else {
+      setNewGroupName('');
+      setSelectedMembers([]);
+    }
+  }, [isEditing, groupToEdit, attendees]);
 
   const handleMemberToggle = (member: string) => {
     setSelectedMembers(prev =>
@@ -45,9 +85,10 @@ export function GroupManager({ attendees, groups, onAddGroup, onDeleteGroup, res
     setSelectedMembers([]);
   };
 
-  const handleAddGroupSubmit = (e: React.FormEvent) => {
+  const handleSubmitGroup = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedGroupName = newGroupName.trim();
+
     if (!trimmedGroupName) {
       toast({ title: 'Group Name Required', description: 'Please enter a name for the group.', variant: 'destructive' });
       return;
@@ -56,7 +97,14 @@ export function GroupManager({ attendees, groups, onAddGroup, onDeleteGroup, res
        toast({ title: 'Reserved Name', description: `"${reservedGroupName}" is a reserved group name. Please choose another.`, variant: 'destructive' });
       return;
     }
-    if (groups.some(g => !g.isSystemGroup && g.name.toLowerCase() === trimmedGroupName.toLowerCase())) {
+    // For new groups, check if name exists. For editing, allow same name if it's the group being edited.
+    const existingGroupWithSameName = groups.find(g => 
+        !g.isSystemGroup && 
+        g.name.toLowerCase() === trimmedGroupName.toLowerCase() &&
+        (!isEditing || g.id !== groupToEdit?.id) // if editing, ignore self
+    );
+
+    if (existingGroupWithSameName) {
       toast({ title: 'Group Name Exists', description: 'A group with this name already exists. Please choose a different name.', variant: 'destructive' });
       return;
     }
@@ -65,13 +113,26 @@ export function GroupManager({ attendees, groups, onAddGroup, onDeleteGroup, res
       return;
     }
 
-    onAddGroup(trimmedGroupName, selectedMembers);
-    setNewGroupName('');
-    setSelectedMembers([]);
-    toast({ title: 'Group Added', description: `Group "${trimmedGroupName}" created successfully.`});
+    if (isEditing && groupToEdit) {
+      onUpdateGroup({ ...groupToEdit, name: trimmedGroupName, members: selectedMembers });
+    } else {
+      onAddGroup(trimmedGroupName, selectedMembers);
+    }
+    // Reset is handled by useEffect based on `isEditing` and `groupToEdit`
   };
 
-  const visibleGroups = groups.filter(g => g.members.length > 0 || g.isSystemGroup);
+  const handleCancelEditClick = () => {
+    onCancelEdit();
+    toast({ title: 'Edit Cancelled', variant: 'default' });
+  };
+  
+  // Filter out the "All Attendees" system group if attendees list is empty, but keep other user groups.
+  const visibleGroups = groups.filter(g => {
+    if (g.isSystemGroup && g.id === 'system-all-attendees') {
+      return attendees.length > 0; // Only show "All Attendees" if there are attendees
+    }
+    return true; // Show all user-created groups
+  });
 
 
   return (
@@ -81,11 +142,14 @@ export function GroupManager({ attendees, groups, onAddGroup, onDeleteGroup, res
           <Users className="mr-2 h-6 w-6 text-primary" />
           Manage Attendee Groups
         </CardTitle>
-        <CardDescription>Create custom groups of attendees. "{reservedGroupName}" is a default group representing all current attendees.</CardDescription>
+        <CardDescription>Create or edit custom groups. "{reservedGroupName}" is a default group for all current attendees.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <form onSubmit={handleAddGroupSubmit} className="space-y-4 p-4 border rounded-lg">
-          <h3 className="text-lg font-semibold flex items-center"><PlusCircle className="mr-2 h-5 w-5 text-accent" />Create New Group</h3>
+        <form onSubmit={handleSubmitGroup} className="space-y-4 p-4 border rounded-lg">
+          <h3 className="text-lg font-semibold flex items-center">
+            {isEditing ? <Pencil className="mr-2 h-5 w-5 text-accent" /> : <PlusCircle className="mr-2 h-5 w-5 text-accent" />}
+            {isEditing ? 'Edit Group' : 'Create New Group'}
+          </h3>
           <div>
             <Label htmlFor="groupName">Group Name</Label>
             <Input
@@ -95,7 +159,7 @@ export function GroupManager({ attendees, groups, onAddGroup, onDeleteGroup, res
               onChange={(e) => setNewGroupName(e.target.value)}
               placeholder="e.g., Core Team, Lunch Buddies"
               className="mt-1"
-              disabled={attendees.length === 0}
+              disabled={attendees.length === 0 && !isEditing} // Allow editing name even if no attendees
             />
           </div>
           <div>
@@ -130,9 +194,21 @@ export function GroupManager({ attendees, groups, onAddGroup, onDeleteGroup, res
               <p className="text-sm text-muted-foreground mt-1">Add attendees first to select members for a group.</p>
             )}
           </div>
-          <Button type="submit" disabled={attendees.length === 0 || !newGroupName.trim() || selectedMembers.length === 0}>
-            <PlusCircle className="mr-2 h-4 w-4" /> Add Group
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button 
+              type="submit" 
+              disabled={(attendees.length === 0 && !isEditing && selectedMembers.length === 0) || !newGroupName.trim() || (selectedMembers.length === 0 && !isEditing) } 
+              className="w-full sm:flex-1"
+            >
+              {isEditing ? <Pencil className="mr-2 h-4 w-4" /> : <PlusCircle className="mr-2 h-4 w-4" />}
+              {isEditing ? 'Update Group' : 'Add Group'}
+            </Button>
+            {isEditing && (
+              <Button type="button" variant="outline" onClick={handleCancelEditClick} className="w-full sm:flex-1">
+                <XCircle className="mr-2 h-4 w-4" /> Cancel Edit
+              </Button>
+            )}
+          </div>
         </form>
 
         {visibleGroups.length > 0 && (
@@ -145,27 +221,84 @@ export function GroupManager({ attendees, groups, onAddGroup, onDeleteGroup, res
                     <div>
                       <p className="font-medium flex items-center">
                         {group.name}
-                        {group.isSystemGroup && <Info className="ml-2 h-4 w-4 text-primary" title="This is a system-managed group." />}
+                        {group.isSystemGroup && 
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="ml-2 h-4 w-4 text-primary cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>This is a system-managed group representing all current attendees.</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        }
                       </p>
                       <div className="flex flex-wrap gap-1 mt-1">
-                        {group.members.map(member => (
+                        {(group.isSystemGroup ? attendees : group.members.filter(m => attendees.includes(m))).map(member => (
                           <Badge key={member} variant={group.isSystemGroup ? 'default' : 'outline'} className="text-xs">{member}</Badge>
                         ))}
-                         {group.members.length === 0 && !group.isSystemGroup && <Badge variant="destructive" className="text-xs">No valid members</Badge>}
-                         {group.members.length === 0 && group.isSystemGroup && attendees.length > 0 && <Badge variant="outline" className="text-xs">All current attendees ({attendees.length})</Badge>}
-                         {group.members.length === 0 && group.isSystemGroup && attendees.length === 0 && <Badge variant="outline" className="text-xs">No attendees yet</Badge>}
+                         {group.members.filter(m => attendees.includes(m)).length === 0 && !group.isSystemGroup && <Badge variant="destructive" className="text-xs">No valid members</Badge>}
+                         {attendees.length === 0 && group.isSystemGroup && <Badge variant="outline" className="text-xs">No attendees yet</Badge>}
                       </div>
                     </div>
                     {!group.isSystemGroup && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="hover:bg-destructive/20 hover:text-destructive"
-                        onClick={() => onDeleteGroup(group.id)}
-                        aria-label={`Delete group ${group.name}`}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center space-x-1">
+                        <TooltipProvider>
+                           <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="hover:bg-accent/20 hover:text-accent-foreground"
+                                onClick={() => onEditGroup(group.id)}
+                                aria-label={`Edit group ${group.name}`}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent><p>Edit Group</p></TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        <AlertDialog>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="hover:bg-destructive/20 hover:text-destructive"
+                                    aria-label={`Delete group ${group.name}`}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                              </TooltipTrigger>
+                              <TooltipContent><p>Delete Group</p></TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete the group: "{group.name}".
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => {
+                                  onDeleteGroup(group.id);
+                                }}
+                                className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     )}
                   </li>
                 ))}
@@ -173,10 +306,10 @@ export function GroupManager({ attendees, groups, onAddGroup, onDeleteGroup, res
             </ScrollArea>
           </div>
         )}
-         {groups.length === 0 && attendees.length > 0 && ( 
+         {groups.filter(g => !g.isSystemGroup).length === 0 && attendees.length > 0 && ( 
             <p className="text-sm text-muted-foreground text-center py-4">No custom groups created yet. Create one above!</p>
         )}
-         {attendees.length === 0 && (
+         {attendees.length === 0 && groups.filter(g => !g.isSystemGroup).length === 0 && (
             <p className="text-sm text-muted-foreground text-center py-4">Add attendees to start managing groups.</p>
         )}
       </CardContent>

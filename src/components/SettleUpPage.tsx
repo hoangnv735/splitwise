@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import type { Expense, Settlement, Balance, AttendeeGroup } from '@/lib/types';
 import { calculateBalances, optimizeTransactions, consolidateIndividualPayments } from '@/lib/calculations';
 import { AppHeader } from '@/components/AppHeader';
@@ -19,7 +19,7 @@ const ALL_ATTENDEES_GROUP_ID = 'system-all-attendees';
 const ALL_ATTENDEES_GROUP_NAME = 'All Attendees';
 
 const DEMO_ATTENDEES = ['Alice', 'Bob', 'Charlie', 'David', 'Eve'];
-const DEMO_EXPENSES: Omit<Expense, 'id'>[] = [
+const DEMO_EXPENSES_DATA: Omit<Expense, 'id'>[] = [
   { description: 'Team Lunch at "The Grand Eatery"', amount: 120, paidBy: 'Alice', participants: ['Alice', 'Bob', 'Charlie'] },
   { description: 'Coffee & Pastries', amount: 35.50, paidBy: 'Bob', participants: ['Alice', 'Bob', 'Charlie', 'David'] },
   { description: 'Park Entrance Fee', amount: 20, paidBy: 'Charlie', participants: ['Charlie', 'David', 'Eve'] },
@@ -34,6 +34,10 @@ export default function SettleUpPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [balances, setBalances] = useState<Balance[]>([]);
+  
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+
   const { toast } = useToast();
 
   const handleAttendeesChange = useCallback((newAttendees: string[]) => {
@@ -43,21 +47,22 @@ export default function SettleUpPage() {
       prevGroups.map(group => ({
         ...group,
         members: group.members.filter(member => newAttendees.includes(member)),
-      })).filter(group => group.isSystemGroup || group.members.length > 0) // Keep system groups, or user groups with members
+      })).filter(group => group.isSystemGroup || group.members.length > 0) 
     );
 
     setExpenses(prevExpenses => 
       prevExpenses.map(exp => ({
         ...exp,
-        paidBy: newAttendees.includes(exp.paidBy) ? exp.paidBy : '', // Invalidate payer if not in new attendees
+        paidBy: newAttendees.includes(exp.paidBy) ? exp.paidBy : '', 
         participants: exp.participants.filter(p => newAttendees.includes(p)),
       }))
-      // Keep expenses if payer is valid AND (it has participants OR there are no attendees at all - edge case for empty picnic)
       .filter(exp => exp.paidBy !== '' && (exp.participants.length > 0 || newAttendees.length === 0)) 
     );
 
     setBalances([]);
     setSettlements([]);
+    setEditingExpenseId(null); 
+    setEditingGroupId(null);
   }, []);
 
   const handleAddGroup = useCallback((groupName: string, members: string[]) => {
@@ -76,6 +81,15 @@ export default function SettleUpPage() {
       isSystemGroup: false,
     };
     setUserCreatedGroups(prevGroups => [...prevGroups, newGroup]);
+    toast({ title: 'Group Added', description: `Group "${groupName}" created successfully.` });
+  }, [toast]);
+
+  const handleUpdateGroup = useCallback((updatedGroup: AttendeeGroup) => {
+    setUserCreatedGroups(prevGroups => 
+      prevGroups.map(g => g.id === updatedGroup.id ? updatedGroup : g)
+    );
+    setEditingGroupId(null);
+    toast({ title: 'Group Updated', description: `Group "${updatedGroup.name}" updated successfully.` });
   }, [toast]);
 
   const handleDeleteGroup = useCallback((groupId: string) => {
@@ -88,8 +102,11 @@ export default function SettleUpPage() {
       return;
     }
     setUserCreatedGroups(prevGroups => prevGroups.filter(group => group.id !== groupId));
+    if (editingGroupId === groupId) {
+      setEditingGroupId(null);
+    }
     toast({ title: 'Group Deleted', description: 'The attendee group has been removed.' });
-  }, [toast]);
+  }, [toast, editingGroupId]);
 
   const handleAddExpense = useCallback((newExpense: Expense) => {
     setExpenses(prevExpenses => [...prevExpenses, newExpense]);
@@ -97,11 +114,25 @@ export default function SettleUpPage() {
     setSettlements([]);
   }, []);
 
+  const handleUpdateExpense = useCallback((updatedExpense: Expense) => {
+    setExpenses(prevExpenses => 
+      prevExpenses.map(exp => exp.id === updatedExpense.id ? updatedExpense : exp)
+    );
+    setEditingExpenseId(null);
+    setBalances([]);
+    setSettlements([]);
+    toast({ title: 'Expense Updated', description: `Expense "${updatedExpense.description}" updated.` });
+  }, [toast]);
+
+
   const handleDeleteExpense = useCallback((expenseId: string) => {
     setExpenses(prevExpenses => prevExpenses.filter(expense => expense.id !== expenseId));
+    if (editingExpenseId === expenseId) {
+      setEditingExpenseId(null);
+    }
     setBalances([]); 
     setSettlements([]);
-  }, []);
+  }, [editingExpenseId]);
 
   const handleCalculate = () => {
     if (attendees.length === 0 && expenses.length > 0) {
@@ -120,7 +151,6 @@ export default function SettleUpPage() {
         description: "There are no expenses to calculate. Add some first!",
         variant: "default",
       });
-       // Clear balances if there are attendees but no expenses.
       if (attendees.length > 0) {
         setBalances(attendees.map(name => ({ attendeeName: name, amount: 0 })));
       } else {
@@ -195,10 +225,12 @@ export default function SettleUpPage() {
     setExpenses([]);
     setBalances([]);
     setSettlements([]);
+    setEditingExpenseId(null);
+    setEditingGroupId(null);
 
     setTimeout(() => {
       setAttendees(DEMO_ATTENDEES);
-      const demoExpensesWithIds: Expense[] = DEMO_EXPENSES.map(exp => ({
+      const demoExpensesWithIds: Expense[] = DEMO_EXPENSES_DATA.map(exp => ({
         ...exp,
         id: crypto.randomUUID(),
       }));
@@ -226,6 +258,24 @@ export default function SettleUpPage() {
   const canCalculate = expenses.length > 0 && attendees.length > 0 && expenses.some(e => e.participants.length > 0 && attendees.includes(e.paidBy));
   const showBalanceSheet = balances.length > 0 || settlements.length > 0 || (balances.length > 0 && settlements.length === 0 && balances.every(b => Math.abs(b.amount) < 0.01));
 
+  const expenseToEdit = useMemo(() => {
+    return expenses.find(exp => exp.id === editingExpenseId) || null;
+  }, [expenses, editingExpenseId]);
+
+  const groupToEdit = useMemo(() => {
+    return userCreatedGroups.find(g => g.id === editingGroupId) || null;
+  }, [userCreatedGroups, editingGroupId]);
+
+  const handleSetEditingExpense = (id: string | null) => {
+    setEditingExpenseId(id);
+    if (id !== null) setEditingGroupId(null); // Clear group edit if starting expense edit
+  };
+
+  const handleSetEditingGroup = (id: string | null) => {
+    setEditingGroupId(id);
+    if (id !== null) setEditingExpenseId(null); // Clear expense edit if starting group edit
+  };
+
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -243,21 +293,29 @@ export default function SettleUpPage() {
         <GroupManager 
           attendees={attendees} 
           groups={displayedGroups} 
-          onAddGroup={handleAddGroup} 
+          onAddGroup={handleAddGroup}
+          onUpdateGroup={handleUpdateGroup}
           onDeleteGroup={handleDeleteGroup}
+          onEditGroup={handleSetEditingGroup}
+          groupToEdit={groupToEdit}
+          onCancelEdit={() => setEditingGroupId(null)}
           reservedGroupName={ALL_ATTENDEES_GROUP_NAME}
         />
         
         <ExpenseForm 
           attendees={attendees} 
           groups={displayedGroups} 
-          onAddExpense={handleAddExpense} 
+          onAddExpense={handleAddExpense}
+          onUpdateExpense={handleUpdateExpense}
+          expenseToEdit={expenseToEdit}
+          onCancelEdit={() => setEditingExpenseId(null)}
         />
 
         {expenses.length > 0 && (
           <ExpenseSummaryTable 
             expenses={expenses} 
             onDeleteExpense={handleDeleteExpense}
+            onEditExpense={handleSetEditingExpense}
           />
         )}
 

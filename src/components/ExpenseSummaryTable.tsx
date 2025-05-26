@@ -8,17 +8,17 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { FileText, Users, UserCircle, DollarSign, Trash2, Edit, Download } from 'lucide-react';
+import { FileText, Users, UserCircle, DollarSign, Trash2, Pencil, Download, Hash } from 'lucide-react'; // Changed Edit to Pencil
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ExpenseSummaryTableProps {
   expenses: Expense[];
   onDeleteExpense: (expenseId: string) => void;
-  // onEditExpense: (expenseId: string) => void; // Placeholder for future edit functionality
+  onEditExpense: (expenseId: string) => void; 
 }
 
-export function ExpenseSummaryTable({ expenses, onDeleteExpense }: ExpenseSummaryTableProps) {
+export function ExpenseSummaryTable({ expenses, onDeleteExpense, onEditExpense }: ExpenseSummaryTableProps) {
   const { toast } = useToast();
 
   const handleExportToCSV = () => {
@@ -31,7 +31,7 @@ export function ExpenseSummaryTable({ expenses, onDeleteExpense }: ExpenseSummar
       return;
     }
 
-    const headers = ['Description', 'Amount', 'Paid By', 'Participants'];
+    const headers = ['Description', 'Amount', 'Paid By', 'Participants', '# Participants'];
     const csvRows = [
       headers.join(','),
       ...expenses.map(expense => {
@@ -41,6 +41,7 @@ export function ExpenseSummaryTable({ expenses, onDeleteExpense }: ExpenseSummar
           expense.amount.toFixed(2),
           `"${expense.paidBy.replace(/"/g, '""')}"`,
           `"${participantsString.replace(/"/g, '""')}"`,
+          expense.participants.length.toString(),
         ].join(',');
       })
     ];
@@ -110,6 +111,7 @@ export function ExpenseSummaryTable({ expenses, onDeleteExpense }: ExpenseSummar
                 <TableHead className="text-right"><DollarSign className="inline-block mr-1 h-4 w-4" />Amount</TableHead>
                 <TableHead><UserCircle className="inline-block mr-1 h-4 w-4" />Paid By</TableHead>
                 <TableHead><Users className="inline-block mr-1 h-4 w-4" />Participants</TableHead>
+                <TableHead className="text-center"><Hash className="inline-block mr-1 h-4 w-4" /># Participants</TableHead>
                 <TableHead className="text-center">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -120,7 +122,7 @@ export function ExpenseSummaryTable({ expenses, onDeleteExpense }: ExpenseSummar
                   <TableCell className="text-right">${expense.amount.toFixed(2)}</TableCell>
                   <TableCell>{expense.paidBy}</TableCell>
                   <TableCell>
-                    <div className="flex flex-wrap gap-1">
+                    <div className="flex flex-wrap gap-1 max-w-xs">
                       {expense.participants.map(participant => (
                         <Badge key={participant} variant="outline" className="text-xs">
                           {participant}
@@ -129,6 +131,7 @@ export function ExpenseSummaryTable({ expenses, onDeleteExpense }: ExpenseSummar
                        {expense.participants.length === 0 && <Badge variant="destructive" className="text-xs">None</Badge>}
                     </div>
                   </TableCell>
+                  <TableCell className="text-center">{expense.participants.length}</TableCell>
                   <TableCell className="text-center">
                     <div className="flex items-center justify-center space-x-1">
                       <TooltipProvider>
@@ -138,14 +141,14 @@ export function ExpenseSummaryTable({ expenses, onDeleteExpense }: ExpenseSummar
                                 variant="ghost"
                                 size="icon"
                                 className="hover:bg-accent/20 hover:text-accent-foreground"
-                                onClick={() => toast({ title: 'Edit (Coming Soon)', description: 'Full edit functionality will be implemented in a future update.'})}
+                                onClick={() => onEditExpense(expense.id)}
                                 aria-label={`Edit expense ${expense.description}`}
                               >
-                                <Edit className="h-4 w-4" />
+                                <Pencil className="h-4 w-4" />
                               </Button>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>Edit Expense (Coming Soon)</p>
+                            <p>Edit Expense</p>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
