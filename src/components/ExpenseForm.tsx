@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -40,25 +41,22 @@ export function ExpenseForm({ attendees, onAddExpense }: ExpenseFormProps) {
       description: '',
       amount: 0,
       paidBy: '',
-      participants: [],
+      participants: [], // Initialize with empty, useEffect will populate based on attendees
     },
   });
 
   const watchedDescription = form.watch('description');
 
   useEffect(() => {
-    // Reset participants if attendees list changes and selected participants are no longer valid
-    const currentParticipants = form.getValues('participants');
-    const validParticipants = currentParticipants.filter(p => attendees.includes(p));
-    if (validParticipants.length !== currentParticipants.length) {
-      form.setValue('participants', validParticipants);
-    }
-    // Also reset paidBy if the selected payer is no longer in attendees
+    // When attendees list changes, default participants to all current attendees
+    form.setValue('participants', attendees, { shouldValidate: true });
+
+    // Reset paidBy if the selected payer is no longer in attendees
     const currentPaidBy = form.getValues('paidBy');
     if (currentPaidBy && !attendees.includes(currentPaidBy)) {
-      form.setValue('paidBy', '');
+      form.setValue('paidBy', '', { shouldValidate: true });
     }
-  }, [attendees, form]);
+  }, [attendees, form.setValue, form.getValues]);
 
 
   const handleSuggestParticipants = async () => {
@@ -107,8 +105,14 @@ export function ExpenseForm({ attendees, onAddExpense }: ExpenseFormProps) {
       id: crypto.randomUUID(),
       ...data,
     });
-    form.reset();
-    form.setValue('participants', []); // Explicitly clear checkboxes
+    // Reset the form, ensuring new participants default to all current attendees
+    form.reset({
+      description: '',
+      amount: 0,
+      paidBy: '', // Clears payer for the next entry
+      participants: attendees, // Default to all attendees for the next expense
+    });
+    
     toast({
       title: 'Expense Added',
       description: `${data.description} for $${data.amount.toFixed(2)} added successfully.`,
@@ -186,7 +190,7 @@ export function ExpenseForm({ attendees, onAddExpense }: ExpenseFormProps) {
                   <div className="mb-2">
                     <FormLabel className="text-base flex items-center"><Users className="mr-1 h-4 w-4"/>Participants</FormLabel>
                     <p className="text-sm text-muted-foreground">
-                      Select who shared this expense.
+                      Select who shared this expense. Defaults to all attendees.
                     </p>
                   </div>
                   {attendees.length > 0 && watchedDescription && (
@@ -254,3 +258,4 @@ export function ExpenseForm({ attendees, onAddExpense }: ExpenseFormProps) {
     </Card>
   );
 }
+
