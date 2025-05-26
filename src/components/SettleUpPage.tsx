@@ -377,7 +377,7 @@ export default function SettleUpPage() {
               Project Data Management
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-col sm:flex-row gap-4 items-start sm:items-center flex-wrap">
+          <CardContent className="flex flex-col sm:flex-row gap-4 items-start sm:items-end flex-wrap">
             <Button variant="outline" onClick={handleSaveProject} className="w-full sm:w-auto">
                 <Save className="mr-2 h-4 w-4" />
                 Save Project to JSON
@@ -393,7 +393,7 @@ export default function SettleUpPage() {
                     className="w-full file:mr-2 file:py-1 file:px-2 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
                 />
             </div>
-             <Button variant="outline" onClick={loadDemoData} size="sm" className="w-full sm:w-auto mt-2 sm:mt-0 sm:self-end">
+             <Button variant="outline" onClick={loadDemoData} size="sm" className="w-full sm:w-auto mt-2 sm:mt-0">
                 <TestTubeDiagonal className="mr-2 h-4 w-4" />
                 Load Demo Data
             </Button>
