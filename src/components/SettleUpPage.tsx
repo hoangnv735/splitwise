@@ -3,7 +3,7 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import type { Expense, Settlement, Balance, AttendeeGroup } from '@/lib/types';
-import { calculateBalances, optimizeTransactions } from '@/lib/calculations';
+import { calculateBalances, optimizeTransactions, consolidateIndividualPayments } from '@/lib/calculations';
 import { AppHeader } from '@/components/AppHeader';
 import { AttendeeManager } from '@/components/AttendeeManager';
 import { GroupManager } from '@/components/GroupManager';
@@ -43,15 +43,17 @@ export default function SettleUpPage() {
       prevGroups.map(group => ({
         ...group,
         members: group.members.filter(member => newAttendees.includes(member)),
-      })).filter(group => group.members.length > 0 || group.isSystemGroup)
+      })).filter(group => group.isSystemGroup || group.members.length > 0) // Keep system groups, or user groups with members
     );
 
     setExpenses(prevExpenses => 
       prevExpenses.map(exp => ({
         ...exp,
-        paidBy: newAttendees.includes(exp.paidBy) ? exp.paidBy : '',
+        paidBy: newAttendees.includes(exp.paidBy) ? exp.paidBy : '', // Invalidate payer if not in new attendees
         participants: exp.participants.filter(p => newAttendees.includes(p)),
-      })).filter(exp => exp.paidBy !== '' && (exp.participants.length > 0 || newAttendees.length === 0))
+      }))
+      // Keep expenses if payer is valid AND (it has participants OR there are no attendees at all - edge case for empty picnic)
+      .filter(exp => exp.paidBy !== '' && (exp.participants.length > 0 || newAttendees.length === 0)) 
     );
 
     setBalances([]);
@@ -105,7 +107,7 @@ export default function SettleUpPage() {
     if (attendees.length === 0 && expenses.length > 0) {
        toast({
         title: "Cannot Calculate",
-        description: "There are expenses but no attendees. Please add attendees or remove expenses.",
+        description: "There are expenses but no attendees. Please add attendees or remove invalid expenses.",
         variant: "destructive",
       });
       setBalances([]);
@@ -116,13 +118,18 @@ export default function SettleUpPage() {
       toast({
         title: "No Expenses to Calculate",
         description: "There are no expenses to calculate. Add some first!",
-        variant: "default", // Changed from destructive
+        variant: "default",
       });
-      setBalances([]);
+       // Clear balances if there are attendees but no expenses.
+      if (attendees.length > 0) {
+        setBalances(attendees.map(name => ({ attendeeName: name, amount: 0 })));
+      } else {
+        setBalances([]);
+      }
       setSettlements([]);
       return;
     }
-     if (attendees.length === 0 && expenses.length === 0) { // Should not be reached if button disabled
+     if (attendees.length === 0 && expenses.length === 0) { 
        toast({
         title: "Nothing to Calculate",
         description: "Please add attendees and expenses.",
@@ -144,7 +151,7 @@ export default function SettleUpPage() {
       return;
     }
     
-    if(validExpenses.length === 0 && expenses.length === 0) { // Should not be reached due to earlier checks
+    if(validExpenses.length === 0 && expenses.length === 0) { 
         toast({
           title: "No Valid Expenses",
           description: "No valid expenses to calculate with the current attendees.",
@@ -155,13 +162,14 @@ export default function SettleUpPage() {
         return;
     }
 
-
     const calculatedBalances = calculateBalances(attendees, validExpenses);
     setBalances(calculatedBalances);
+    
     const optimizedSettlements = optimizeTransactions(calculatedBalances);
-    setSettlements(optimizedSettlements);
+    const finalSettlements = consolidateIndividualPayments(optimizedSettlements);
+    setSettlements(finalSettlements);
 
-    if (calculatedBalances.length > 0 || optimizedSettlements.length > 0) {
+    if (calculatedBalances.length > 0 || finalSettlements.length > 0) {
       toast({
         title: 'Calculation Complete',
         description: 'Balances and settlements have been updated.',
@@ -173,7 +181,6 @@ export default function SettleUpPage() {
         variant: 'default' 
       });
     } else if (validExpenses.length === 0) {
-        // This case should ideally be caught earlier
         toast({
             title: 'No Valid Expenses for Calculation',
             description: 'No expenses could be used for calculation with the current attendees.',
@@ -183,13 +190,12 @@ export default function SettleUpPage() {
   };
 
   const loadDemoData = () => {
-    setAttendees([]); // Clear existing attendees first to ensure clean slate for demo members
+    setAttendees([]); 
     setUserCreatedGroups([]);
     setExpenses([]);
     setBalances([]);
     setSettlements([]);
 
-    // Use a timeout to ensure state updates from clearing are processed before adding new data
     setTimeout(() => {
       setAttendees(DEMO_ATTENDEES);
       const demoExpensesWithIds: Expense[] = DEMO_EXPENSES.map(exp => ({
@@ -218,7 +224,8 @@ export default function SettleUpPage() {
   }, [allAttendeesGroupForDisplay, userCreatedGroups, attendees]);
   
   const canCalculate = expenses.length > 0 && attendees.length > 0 && expenses.some(e => e.participants.length > 0 && attendees.includes(e.paidBy));
-  const showBalanceSheet = balances.length > 0 || settlements.length > 0 || (canCalculate && settlements.length === 0 && balances.every(b => Math.abs(b.amount) < 0.01));
+  const showBalanceSheet = balances.length > 0 || settlements.length > 0 || (balances.length > 0 && settlements.length === 0 && balances.every(b => Math.abs(b.amount) < 0.01));
+
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -261,7 +268,11 @@ export default function SettleUpPage() {
                 onClick={handleCalculate} 
                 className="w-full text-lg py-6" 
                 size="lg" 
-                disabled={!canCalculate && !(expenses.length === 0 && attendees.length > 0)} // Disable if no valid expenses or if no expenses AND no attendees
+                // Disable if:
+                // 1. Cannot calculate (no valid expenses, or no attendees for existing expenses)
+                // AND
+                // 2. It's not the case where there are no expenses AND some attendees (in which case, calculate should just show 0 balances)
+                disabled={!canCalculate && !(expenses.length === 0 && attendees.length > 0)}
               >
                 <Calculator className="mr-2 h-5 w-5" /> Calculate Balances & Settle Up
               </Button>
@@ -280,4 +291,3 @@ export default function SettleUpPage() {
     </div>
   );
 }
-
