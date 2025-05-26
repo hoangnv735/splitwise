@@ -1,3 +1,4 @@
+
 export interface Expense {
   id: string;
   description: string;
@@ -15,4 +16,10 @@ export interface Settlement {
 export interface Balance {
   attendeeName: string;
   amount: number; // Positive: is owed, Negative: owes
+}
+
+export interface AttendeeGroup {
+  id: string;
+  name: string;
+  members: string[]; // Attendee names
 }

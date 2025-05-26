@@ -12,9 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import type { Expense } from '@/lib/types';
+import type { Expense, AttendeeGroup } from '@/lib/types';
 import { suggestAttributions } from '@/ai/flows/suggest-attributions';
-import { Wand2, ListPlus, DollarSign, UserCircle, Users } from 'lucide-react';
+import { Wand2, ListPlus, DollarSign, UserCircle, Users, Users2Icon } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 const expenseFormSchema = z.object({
@@ -22,16 +22,18 @@ const expenseFormSchema = z.object({
   amount: z.coerce.number().positive('Amount must be positive.'),
   paidBy: z.string().min(1, 'Payer is required.'),
   participants: z.array(z.string()).min(1, 'At least one participant is required.'),
+  selectedGroupId: z.string().optional(), // For tracking selected group
 });
 
 type ExpenseFormValues = z.infer<typeof expenseFormSchema>;
 
 interface ExpenseFormProps {
   attendees: string[];
+  groups: AttendeeGroup[]; // Added groups prop
   onAddExpense: (expense: Expense) => void;
 }
 
-export function ExpenseForm({ attendees, onAddExpense }: ExpenseFormProps) {
+export function ExpenseForm({ attendees, groups, onAddExpense }: ExpenseFormProps) {
   const { toast } = useToast();
   const [isSuggesting, setIsSuggesting] = useState(false);
   
@@ -41,22 +43,53 @@ export function ExpenseForm({ attendees, onAddExpense }: ExpenseFormProps) {
       description: '',
       amount: 0,
       paidBy: '',
-      participants: [], // Initialize with empty, useEffect will populate based on attendees
+      participants: attendees, 
+      selectedGroupId: undefined,
     },
   });
 
   const watchedDescription = form.watch('description');
+  const watchedSelectedGroupId = form.watch('selectedGroupId');
 
   useEffect(() => {
-    // When attendees list changes, default participants to all current attendees
-    form.setValue('participants', attendees, { shouldValidate: true });
+    // When attendees list changes, and no group is selected, default participants to all current attendees
+    if (!form.getValues('selectedGroupId')) {
+      form.setValue('participants', attendees, { shouldValidate: true });
+    } else {
+      // If a group was selected, re-evaluate its members against current attendees
+      const groupId = form.getValues('selectedGroupId');
+      const group = groups.find(g => g.id === groupId);
+      if (group) {
+        const validMembers = group.members.filter(member => attendees.includes(member));
+        form.setValue('participants', validMembers, { shouldValidate: true });
+      } else {
+        // Group might have been deleted, or attendees changed such that group is no longer valid
+        form.setValue('participants', attendees, {shouldValidate: true});
+        form.setValue('selectedGroupId', undefined);
+      }
+    }
 
-    // Reset paidBy if the selected payer is no longer in attendees
     const currentPaidBy = form.getValues('paidBy');
     if (currentPaidBy && !attendees.includes(currentPaidBy)) {
       form.setValue('paidBy', '', { shouldValidate: true });
     }
-  }, [attendees, form.setValue, form.getValues]);
+  }, [attendees, form, groups]);
+
+
+  useEffect(() => {
+    // When selectedGroupId changes (user picks a group from dropdown)
+    const groupId = form.getValues('selectedGroupId');
+    if (groupId) {
+      const group = groups.find(g => g.id === groupId);
+      if (group) {
+        const validMembers = group.members.filter(member => attendees.includes(member));
+        form.setValue('participants', validMembers, { shouldValidate: true });
+      }
+    } else {
+      // If group is deselected (e.g., "Select all" or "None" option)
+      form.setValue('participants', attendees, { shouldValidate: true });
+    }
+  }, [watchedSelectedGroupId, groups, attendees, form]);
 
 
   const handleSuggestParticipants = async () => {
@@ -71,28 +104,33 @@ export function ExpenseForm({ attendees, onAddExpense }: ExpenseFormProps) {
     }
     setIsSuggesting(true);
     try {
+      // Clear group selection when AI suggestion is used
+      form.setValue('selectedGroupId', undefined);
+
       const suggestions = await suggestAttributions({ description, participants: attendees });
       const suggestedParticipants = Object.entries(suggestions)
-        .filter(([, score]) => score > 0.5) // Threshold for suggestion
+        .filter(([, score]) => score > 0.5)
         .map(([name]) => name);
       
       if (suggestedParticipants.length > 0) {
         form.setValue('participants', suggestedParticipants, { shouldValidate: true });
         toast({
           title: 'Participants Suggested',
-          description: 'AI has suggested participants based on the description.',
+          description: 'AI has suggested participants. Group selection cleared.',
         });
       } else {
         toast({
           title: 'No Strong Suggestions',
-          description: 'AI could not confidently suggest participants. Please select manually.',
+          description: 'AI could not confidently suggest. Please select manually.',
         });
+        // If no AI suggestions, default back to all attendees
+        form.setValue('participants', attendees, { shouldValidate: true });
       }
     } catch (error) {
       console.error('AI Suggestion Error:', error);
       toast({
         title: 'AI Suggestion Error',
-        description: 'Could not get suggestions from AI. Please try again or select manually.',
+        description: 'Could not get suggestions. Please try again or select manually.',
         variant: 'destructive',
       });
     } finally {
@@ -103,14 +141,18 @@ export function ExpenseForm({ attendees, onAddExpense }: ExpenseFormProps) {
   function onSubmit(data: ExpenseFormValues) {
     onAddExpense({
       id: crypto.randomUUID(),
-      ...data,
+      description: data.description,
+      amount: data.amount,
+      paidBy: data.paidBy,
+      participants: data.participants,
     });
-    // Reset the form, ensuring new participants default to all current attendees
+    
     form.reset({
       description: '',
       amount: 0,
-      paidBy: '', // Clears payer for the next entry
-      participants: attendees, // Default to all attendees for the next expense
+      paidBy: '',
+      participants: attendees, 
+      selectedGroupId: undefined, // Reset selected group
     });
     
     toast({
@@ -126,7 +168,7 @@ export function ExpenseForm({ attendees, onAddExpense }: ExpenseFormProps) {
           <DollarSign className="mr-2 h-6 w-6 text-primary" />
           Add New Expense
         </CardTitle>
-        <CardDescription>Log a new expense and assign it to participants.</CardDescription>
+        <CardDescription>Log a new expense and assign it to participants or groups.</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
@@ -163,7 +205,7 @@ export function ExpenseForm({ attendees, onAddExpense }: ExpenseFormProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="flex items-center"><UserCircle className="mr-1 h-4 w-4"/>Paid By</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value} disabled={attendees.length === 0}>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={attendees.length === 0}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select who paid" />
@@ -182,6 +224,42 @@ export function ExpenseForm({ attendees, onAddExpense }: ExpenseFormProps) {
                 </FormItem>
               )}
             />
+
+            {/* Group Selector */}
+            {groups.length > 0 && attendees.length > 0 && (
+              <FormField
+                control={form.control}
+                name="selectedGroupId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center"><Users2Icon className="mr-1 h-4 w-4" />Select Group (Optional)</FormLabel>
+                    <Select 
+                      onValueChange={(value) => {
+                        field.onChange(value === "none" ? undefined : value);
+                      }} 
+                      value={field.value || "none"}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a group or all attendees" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">All Attendees / Custom</SelectItem>
+                        {groups.map(group => (
+                          <SelectItem key={group.id} value={group.id}>
+                            {group.name} ({group.members.length} members)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+            
+            {/* Participants Checkboxes */}
             <FormField
               control={form.control}
               name="participants"
@@ -190,7 +268,7 @@ export function ExpenseForm({ attendees, onAddExpense }: ExpenseFormProps) {
                   <div className="mb-2">
                     <FormLabel className="text-base flex items-center"><Users className="mr-1 h-4 w-4"/>Participants</FormLabel>
                     <p className="text-sm text-muted-foreground">
-                      Select who shared this expense. Defaults to all attendees.
+                      Select who shared this expense. {form.getValues('selectedGroupId') ? 'Adjust selection if needed.' : 'Defaults to all attendees.'}
                     </p>
                   </div>
                   {attendees.length > 0 && watchedDescription && (
@@ -223,6 +301,8 @@ export function ExpenseForm({ attendees, onAddExpense }: ExpenseFormProps) {
                                   <Checkbox
                                     checked={field.value?.includes(attendee)}
                                     onCheckedChange={(checked) => {
+                                      // When manually changing checkboxes, clear selected group ID
+                                      form.setValue('selectedGroupId', undefined);
                                       return checked
                                         ? field.onChange([...(field.value || []), attendee])
                                         : field.onChange(
@@ -258,4 +338,3 @@ export function ExpenseForm({ attendees, onAddExpense }: ExpenseFormProps) {
     </Card>
   );
 }
-
