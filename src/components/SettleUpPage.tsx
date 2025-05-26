@@ -1,12 +1,12 @@
 
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import type { Expense, Settlement, Balance, AttendeeGroup } from '@/lib/types';
 import { calculateBalances, optimizeTransactions } from '@/lib/calculations';
 import { AppHeader } from '@/components/AppHeader';
 import { AttendeeManager } from '@/components/AttendeeManager';
-import { GroupManager } from '@/components/GroupManager'; // Added
+import { GroupManager } from '@/components/GroupManager';
 import { ExpenseForm } from '@/components/ExpenseForm';
 import { ExpenseSummaryTable } from '@/components/ExpenseSummaryTable';
 import { BalanceSheetDisplay } from '@/components/BalanceSheetDisplay';
@@ -15,10 +15,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Calculator } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+const ALL_ATTENDEES_GROUP_ID = 'system-all-attendees';
+const ALL_ATTENDEES_GROUP_NAME = 'All Attendees';
 
 export default function SettleUpPage() {
   const [attendees, setAttendees] = useState<string[]>([]);
-  const [groups, setGroups] = useState<AttendeeGroup[]>([]); // Added for groups
+  const [userCreatedGroups, setUserCreatedGroups] = useState<AttendeeGroup[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [balances, setBalances] = useState<Balance[]>([]);
@@ -27,12 +29,11 @@ export default function SettleUpPage() {
   const handleAttendeesChange = useCallback((newAttendees: string[]) => {
     setAttendees(newAttendees);
     
-    // Update groups: remove members no longer in attendees list
-    setGroups(prevGroups => 
+    setUserCreatedGroups(prevGroups => 
       prevGroups.map(group => ({
         ...group,
         members: group.members.filter(member => newAttendees.includes(member)),
-      })).filter(group => group.members.length > 0) // Optionally remove empty groups
+      })).filter(group => group.members.length > 0) 
     );
 
     setExpenses(prevExpenses => 
@@ -48,16 +49,34 @@ export default function SettleUpPage() {
   }, []);
 
   const handleAddGroup = useCallback((groupName: string, members: string[]) => {
+    if (groupName === ALL_ATTENDEES_GROUP_NAME) {
+      toast({
+        title: 'Reserved Name',
+        description: `"${ALL_ATTENDEES_GROUP_NAME}" is a reserved name and cannot be used.`,
+        variant: 'destructive',
+      });
+      return;
+    }
     const newGroup: AttendeeGroup = {
       id: crypto.randomUUID(),
       name: groupName,
       members,
+      isSystemGroup: false,
     };
-    setGroups(prevGroups => [...prevGroups, newGroup]);
-  }, []);
+    setUserCreatedGroups(prevGroups => [...prevGroups, newGroup]);
+  }, [toast]);
 
   const handleDeleteGroup = useCallback((groupId: string) => {
-    setGroups(prevGroups => prevGroups.filter(group => group.id !== groupId));
+    if (groupId === ALL_ATTENDEES_GROUP_ID) {
+      // Should not happen if delete button is hidden, but as a safeguard
+      toast({
+        title: 'Cannot Delete',
+        description: `The "${ALL_ATTENDEES_GROUP_NAME}" group cannot be deleted.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+    setUserCreatedGroups(prevGroups => prevGroups.filter(group => group.id !== groupId));
     toast({ title: 'Group Deleted', description: 'The attendee group has been removed.' });
   }, [toast]);
 
@@ -81,6 +100,17 @@ export default function SettleUpPage() {
     const optimizedSettlements = optimizeTransactions(calculatedBalances);
     setSettlements(optimizedSettlements);
   };
+
+  const allAttendeesGroupForDisplay: AttendeeGroup = useMemo(() => ({
+    id: ALL_ATTENDEES_GROUP_ID,
+    name: ALL_ATTENDEES_GROUP_NAME,
+    members: attendees,
+    isSystemGroup: true,
+  }), [attendees]);
+
+  const displayedGroups = useMemo(() => {
+    return attendees.length > 0 ? [allAttendeesGroupForDisplay, ...userCreatedGroups] : [...userCreatedGroups];
+  }, [allAttendeesGroupForDisplay, userCreatedGroups, attendees.length]);
   
   return (
     <div className="flex flex-col min-h-screen">
@@ -90,14 +120,15 @@ export default function SettleUpPage() {
         
         <GroupManager 
           attendees={attendees} 
-          groups={groups} 
+          groups={displayedGroups} 
           onAddGroup={handleAddGroup} 
-          onDeleteGroup={handleDeleteGroup} 
+          onDeleteGroup={handleDeleteGroup}
+          reservedGroupName={ALL_ATTENDEES_GROUP_NAME}
         />
         
         <ExpenseForm 
           attendees={attendees} 
-          groups={groups} 
+          groups={displayedGroups} // Pass displayedGroups which includes "All Attendees"
           onAddExpense={handleAddExpense} 
         />
 
