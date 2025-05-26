@@ -14,8 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import type { Expense, AttendeeGroup } from '@/lib/types';
-import { suggestAttributions } from '@/ai/flows/suggest-attributions';
-import { Wand2, ListPlus, DollarSign, UserCircle, Users, Users2Icon, Zap, XCircle } from 'lucide-react';
+import { ListPlus, DollarSign, UserCircle, Users, Users2Icon, Zap, XCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 const expenseFormSchema = z.object({
@@ -23,7 +22,7 @@ const expenseFormSchema = z.object({
   amount: z.coerce.number().positive('Amount must be positive.'),
   paidBy: z.string().min(1, 'Payer is required.'),
   participants: z.array(z.string()).min(1, 'At least one participant is required.'),
-  selectedGroupId: z.string().optional(), 
+  selectedGroupId: z.string().optional(),
 });
 
 type ExpenseFormValues = z.infer<typeof expenseFormSchema>;
@@ -39,21 +38,19 @@ interface ExpenseFormProps {
 
 export function ExpenseForm({ attendees, groups, onAddExpense, onUpdateExpense, expenseToEdit, onCancelEdit }: ExpenseFormProps) {
   const { toast } = useToast();
-  const [isSuggesting, setIsSuggesting] = useState(false);
   const [fastInputText, setFastInputText] = useState('');
-  
+
   const form = useForm<ExpenseFormValues>({
     resolver: zodResolver(expenseFormSchema),
     defaultValues: {
       description: '',
       amount: 0,
       paidBy: '',
-      participants: attendees, 
+      participants: attendees,
       selectedGroupId: undefined,
     },
   });
 
-  const watchedDescription = form.watch('description');
   const watchedSelectedGroupId = form.watch('selectedGroupId');
   const isEditing = !!expenseToEdit;
 
@@ -64,16 +61,14 @@ export function ExpenseForm({ attendees, groups, onAddExpense, onUpdateExpense, 
         amount: expenseToEdit.amount,
         paidBy: expenseToEdit.paidBy,
         participants: expenseToEdit.participants,
-        selectedGroupId: groups.find(g => 
-          g.members.length === expenseToEdit.participants.length && 
+        selectedGroupId: groups.find(g =>
+          g.members.length === expenseToEdit.participants.length &&
           g.members.every(m => expenseToEdit.participants.includes(m)) &&
-          // Ensure group members are exactly the same, not just a subset or superset
-          expenseToEdit.participants.every(p => g.members.includes(p)) 
+          expenseToEdit.participants.every(p => g.members.includes(p))
         )?.id || undefined,
       });
-      setFastInputText(''); // Clear fast input when starting an edit
+      setFastInputText('');
     } else if (!isEditing) {
-      // Reset form but try to keep last selected group if applicable
       const lastSelectedGroupId = form.getValues('selectedGroupId');
       form.reset({
         description: '',
@@ -82,13 +77,12 @@ export function ExpenseForm({ attendees, groups, onAddExpense, onUpdateExpense, 
         participants: attendees,
         selectedGroupId: lastSelectedGroupId,
       });
-       // Re-apply group participants if a group was selected
       if (lastSelectedGroupId) {
         const group = groups.find(g => g.id === lastSelectedGroupId);
         if (group) {
           const validMembers = group.members.filter(member => attendees.includes(member));
           form.setValue('participants', validMembers, { shouldValidate: false });
-        } else { // Group might have been deleted or attendees changed
+        } else {
           form.setValue('participants', attendees, { shouldValidate: false });
           form.setValue('selectedGroupId', undefined);
         }
@@ -100,8 +94,6 @@ export function ExpenseForm({ attendees, groups, onAddExpense, onUpdateExpense, 
 
 
   useEffect(() => {
-    // This effect handles participant updates when selectedGroupId or attendees list changes
-    // Only run if not currently editing an expense (to avoid overriding loaded edit data)
     if (isEditing) return;
 
     const currentSelectedGroupId = form.getValues('selectedGroupId');
@@ -109,70 +101,25 @@ export function ExpenseForm({ attendees, groups, onAddExpense, onUpdateExpense, 
       const group = groups.find(g => g.id === currentSelectedGroupId);
       if (group) {
         const validMembers = group.members.filter(member => attendees.includes(member));
-        // Only update if participants are different to avoid loop
         if (JSON.stringify(form.getValues('participants')) !== JSON.stringify(validMembers)) {
            form.setValue('participants', validMembers, { shouldValidate: true });
         }
-      } else { // Group not found (e.g., deleted), revert to all attendees
+      } else {
         form.setValue('participants', attendees, { shouldValidate: true });
-        form.setValue('selectedGroupId', undefined); 
+        form.setValue('selectedGroupId', undefined);
       }
-    } else { // No group selected, ensure participants are all current attendees
+    } else {
        if (JSON.stringify(form.getValues('participants')) !== JSON.stringify(attendees)) {
         form.setValue('participants', attendees, { shouldValidate: true });
       }
     }
 
-    // Validate payer
     const currentPaidBy = form.getValues('paidBy');
     if (currentPaidBy && !attendees.includes(currentPaidBy)) {
       form.setValue('paidBy', '', { shouldValidate: true });
     }
-  }, [attendees, groups, form, watchedSelectedGroupId, isEditing]); 
+  }, [attendees, groups, form, watchedSelectedGroupId, isEditing]);
 
-
-  const handleSuggestParticipants = async () => {
-    const description = form.getValues('description');
-    if (!description || attendees.length === 0) {
-      toast({
-        title: 'Suggestion Failed',
-        description: 'Please enter a description and add attendees first.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    setIsSuggesting(true);
-    try {
-      form.setValue('selectedGroupId', undefined); 
-      const suggestions = await suggestAttributions({ description, participants: attendees });
-      const suggestedParticipants = Object.entries(suggestions)
-        .filter(([, score]) => score > 0.5)
-        .map(([name]) => name);
-      
-      if (suggestedParticipants.length > 0) {
-        form.setValue('participants', suggestedParticipants, { shouldValidate: true });
-        toast({
-          title: 'Participants Suggested',
-          description: 'AI has suggested participants. Group selection cleared.',
-        });
-      } else {
-        toast({
-          title: 'No Strong Suggestions',
-          description: 'AI could not confidently suggest. Please select manually.',
-        });
-        form.setValue('participants', attendees, { shouldValidate: true }); 
-      }
-    } catch (error) {
-      console.error('AI Suggestion Error:', error);
-      toast({
-        title: 'AI Suggestion Error',
-        description: 'Could not get suggestions. Please try again or select manually.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsSuggesting(false);
-    }
-  };
 
   const handleApplyFastInput = () => {
     if (!fastInputText.trim()) {
@@ -181,7 +128,7 @@ export function ExpenseForm({ attendees, groups, onAddExpense, onUpdateExpense, 
     }
 
     const parts = fastInputText.split(',').map(part => part.trim());
-    
+
     if (parts.length < 3 || parts.length > 4) {
       toast({
         title: 'Invalid Fast Entry Format',
@@ -234,12 +181,12 @@ export function ExpenseForm({ attendees, groups, onAddExpense, onUpdateExpense, 
           description: `Group "${groupNameInput}" not found. Participants set to all attendees. Please verify.`,
           variant: 'destructive',
         });
-        form.setValue('selectedGroupId', undefined); 
-        form.setValue('participants', attendees, { shouldValidate: true }); 
+        form.setValue('selectedGroupId', undefined);
+        form.setValue('participants', attendees, { shouldValidate: true });
       }
     } else {
       form.setValue('selectedGroupId', undefined);
-      form.setValue('participants', attendees, { shouldValidate: true }); // Default to all if no group or empty group name
+      form.setValue('participants', attendees, { shouldValidate: true });
     }
 
     toast({
@@ -259,11 +206,9 @@ export function ExpenseForm({ attendees, groups, onAddExpense, onUpdateExpense, 
         ...data,
       });
     }
-    
-    // Reset logic is handled by useEffect based on `isEditing` and `expenseToEdit`
-    // but ensure fast input is cleared
+
     setFastInputText('');
-    
+
     toast({
       title: isEditing ? 'Expense Updated' : 'Expense Added',
       description: `${data.description} for $${data.amount.toFixed(2)} ${isEditing ? 'updated' : 'added'} successfully.`,
@@ -272,7 +217,6 @@ export function ExpenseForm({ attendees, groups, onAddExpense, onUpdateExpense, 
 
   const handleCancelEdit = () => {
     onCancelEdit();
-    // useEffect will handle form reset when expenseToEdit becomes null
     toast({ title: 'Edit Cancelled', variant: 'default' });
   };
 
@@ -301,7 +245,7 @@ export function ExpenseForm({ attendees, groups, onAddExpense, onUpdateExpense, 
                   placeholder="e.g., Food, 20, Alice [, GroupName]"
                   className="flex-grow"
                   aria-label="Fast expense entry: Description, Amount, Payer [, GroupName]"
-                  disabled={isEditing} // Disable fast input when editing
+                  disabled={isEditing}
                 />
                 <Button type="button" onClick={handleApplyFastInput} variant="outline" size="sm" disabled={isEditing}>
                   Apply
@@ -374,11 +318,11 @@ export function ExpenseForm({ attendees, groups, onAddExpense, onUpdateExpense, 
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="flex items-center"><Users2Icon className="mr-1 h-4 w-4" />Select Group (for Participants)</FormLabel>
-                      <Select 
+                      <Select
                         onValueChange={(value) => {
                           field.onChange(value === "none" ? undefined : value);
-                        }} 
-                        value={field.value || "none"} 
+                        }}
+                        value={field.value || "none"}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -400,7 +344,7 @@ export function ExpenseForm({ attendees, groups, onAddExpense, onUpdateExpense, 
                 />
               )}
             </div>
-            
+
             <div className="flex flex-col sm:flex-row gap-2 mt-6">
               <Button type="submit" className="w-full sm:flex-1" disabled={attendees.length === 0}>
                 <ListPlus className="mr-2 h-4 w-4" /> {isEditing ? 'Update Expense' : 'Add Expense'}
@@ -412,21 +356,7 @@ export function ExpenseForm({ attendees, groups, onAddExpense, onUpdateExpense, 
               )}
             </div>
 
-
             <div className="mt-4 space-y-2">
-                 {attendees.length > 0 && watchedDescription && (
-                     <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleSuggestParticipants}
-                        disabled={isSuggesting || attendees.length === 0 || !watchedDescription}
-                        className="w-full"
-                      >
-                        <Wand2 className="mr-2 h-4 w-4" />
-                        {isSuggesting ? 'Suggesting Participants (AI)...' : 'Suggest Participants (AI)'}
-                      </Button>
-                  )}
                 <FormField
                   control={form.control}
                   name="participants"
