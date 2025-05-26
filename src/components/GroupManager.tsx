@@ -36,19 +36,19 @@ interface GroupManagerProps {
   onEditGroup: (groupId: string) => void;
   groupToEdit: AttendeeGroup | null;
   onCancelEdit: () => void;
-  reservedGroupName?: string; 
+  reservedGroupName?: string;
 }
 
-export function GroupManager({ 
-  attendees, 
-  groups, 
-  onAddGroup, 
-  onUpdateGroup, 
-  onDeleteGroup, 
+export function GroupManager({
+  attendees,
+  groups,
+  onAddGroup,
+  onUpdateGroup,
+  onDeleteGroup,
   onEditGroup,
   groupToEdit,
   onCancelEdit,
-  reservedGroupName 
+  reservedGroupName
 }: GroupManagerProps) {
   const [newGroupName, setNewGroupName] = useState('');
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
@@ -93,15 +93,14 @@ export function GroupManager({
       toast({ title: 'Group Name Required', description: 'Please enter a name for the group.', variant: 'destructive' });
       return;
     }
-    if (reservedGroupName && trimmedGroupName.toLowerCase() === reservedGroupName.toLowerCase()) {
+    if (reservedGroupName && trimmedGroupName.toLowerCase() === reservedGroupName.toLowerCase() && (!isEditing || groupToEdit?.name.toLowerCase() !== reservedGroupName.toLowerCase())) {
        toast({ title: 'Reserved Name', description: `"${reservedGroupName}" is a reserved group name. Please choose another.`, variant: 'destructive' });
       return;
     }
-    // For new groups, check if name exists. For editing, allow same name if it's the group being edited.
-    const existingGroupWithSameName = groups.find(g => 
-        !g.isSystemGroup && 
+    const existingGroupWithSameName = groups.find(g =>
+        !g.isSystemGroup &&
         g.name.toLowerCase() === trimmedGroupName.toLowerCase() &&
-        (!isEditing || g.id !== groupToEdit?.id) // if editing, ignore self
+        (!isEditing || g.id !== groupToEdit?.id)
     );
 
     if (existingGroupWithSameName) {
@@ -118,20 +117,18 @@ export function GroupManager({
     } else {
       onAddGroup(trimmedGroupName, selectedMembers);
     }
-    // Reset is handled by useEffect based on `isEditing` and `groupToEdit`
   };
 
   const handleCancelEditClick = () => {
     onCancelEdit();
     toast({ title: 'Edit Cancelled', variant: 'default' });
   };
-  
-  // Filter out the "All Attendees" system group if attendees list is empty, but keep other user groups.
+
   const visibleGroups = groups.filter(g => {
     if (g.isSystemGroup && g.id === 'system-all-attendees') {
-      return attendees.length > 0; // Only show "All Attendees" if there are attendees
+      return attendees.length > 0;
     }
-    return true; // Show all user-created groups
+    return true;
   });
 
 
@@ -142,62 +139,65 @@ export function GroupManager({
           <Users className="mr-2 h-6 w-6 text-primary" />
           Manage Attendee Groups
         </CardTitle>
-        <CardDescription>Create or edit custom groups. "{reservedGroupName}" is a default group for all current attendees.</CardDescription>
+        <CardDescription>
+          Create or edit groups. '{reservedGroupName}' includes all current attendees.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <form onSubmit={handleSubmitGroup} className="space-y-4 p-4 border rounded-lg">
           <h3 className="text-lg font-semibold flex items-center">
             {isEditing ? <Pencil className="mr-2 h-5 w-5 text-accent" /> : <PlusCircle className="mr-2 h-5 w-5 text-accent" />}
-            {isEditing ? 'Edit Group' : 'Create New Group'}
+            {isEditing ? `Edit Group: ${groupToEdit?.name}` : 'Create New Group'}
           </h3>
-          <div>
-            <Label htmlFor="groupName">Group Name</Label>
-            <Input
-              id="groupName"
-              type="text"
-              value={newGroupName}
-              onChange={(e) => setNewGroupName(e.target.value)}
-              placeholder="e.g., Core Team, Lunch Buddies"
-              className="mt-1"
-              disabled={attendees.length === 0 && !isEditing} // Allow editing name even if no attendees
-            />
-          </div>
-          <div>
-            <div className="flex justify-between items-center mb-1">
-              <Label>Select Members</Label>
-              {attendees.length > 0 && (
-                <div className="space-x-2">
-                  <Button type="button" variant="outline" size="sm" onClick={handleSelectAllMembers} disabled={attendees.length === 0}>
-                    <CheckSquare className="mr-1 h-3 w-3" /> Select All
-                  </Button>
-                  <Button type="button" variant="outline" size="sm" onClick={handleDeselectAllMembers} disabled={attendees.length === 0 || selectedMembers.length === 0}>
-                    <Square className="mr-1 h-3 w-3" /> Deselect All
-                  </Button>
-                </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div> {/* Column 1: Group Name */}
+              <Label htmlFor="groupName" className="block mb-1">Group Name</Label>
+              <Input
+                id="groupName"
+                type="text"
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                placeholder="e.g., Core Team, Lunch Buddies"
+                disabled={(attendees.length === 0 && !isEditing)}
+              />
+            </div>
+            <div> {/* Column 2: Member Selection */}
+              <div className="flex justify-between items-center mb-1">
+                <Label>Select Members</Label>
+                {attendees.length > 0 && (
+                  <div className="space-x-1">
+                    <Button type="button" variant="outline" size="sm" onClick={handleSelectAllMembers} disabled={attendees.length === 0}>
+                      <CheckSquare className="mr-1 h-3 w-3" /> All
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={handleDeselectAllMembers} disabled={attendees.length === 0 || selectedMembers.length === 0}>
+                      <Square className="mr-1 h-3 w-3" /> None
+                    </Button>
+                  </div>
+                )}
+              </div>
+              {attendees.length > 0 ? (
+                <ScrollArea className="h-32 mt-1 rounded-md border p-2">
+                  {attendees.map(attendee => (
+                    <div key={attendee} className="flex items-center space-x-2 py-1">
+                      <Checkbox
+                        id={`member-${attendee}-${groupToEdit?.id || 'new'}`} // Ensure unique ID for checkbox
+                        checked={selectedMembers.includes(attendee)}
+                        onCheckedChange={() => handleMemberToggle(attendee)}
+                        aria-label={`Select ${attendee}`}
+                      />
+                      <Label htmlFor={`member-${attendee}-${groupToEdit?.id || 'new'}`} className="font-normal">{attendee}</Label>
+                    </div>
+                  ))}
+                </ScrollArea>
+              ) : (
+                <p className="text-sm text-muted-foreground mt-1 py-1">Add attendees first to select members.</p>
               )}
             </div>
-            {attendees.length > 0 ? (
-              <ScrollArea className="h-32 mt-1 rounded-md border p-2">
-                {attendees.map(attendee => (
-                  <div key={attendee} className="flex items-center space-x-2 py-1">
-                    <Checkbox
-                      id={`member-${attendee}`}
-                      checked={selectedMembers.includes(attendee)}
-                      onCheckedChange={() => handleMemberToggle(attendee)}
-                      aria-label={`Select ${attendee}`}
-                    />
-                    <Label htmlFor={`member-${attendee}`} className="font-normal">{attendee}</Label>
-                  </div>
-                ))}
-              </ScrollArea>
-            ) : (
-              <p className="text-sm text-muted-foreground mt-1">Add attendees first to select members for a group.</p>
-            )}
           </div>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Button 
-              type="submit" 
-              disabled={(attendees.length === 0 && !isEditing && selectedMembers.length === 0) || !newGroupName.trim() || (selectedMembers.length === 0 && !isEditing) } 
+          <div className="flex flex-col sm:flex-row gap-2 pt-2"> {/* Added pt-2 for spacing */}
+            <Button
+              type="submit"
+              disabled={(!newGroupName.trim() || (selectedMembers.length === 0 && !isEditing && attendees.length > 0) || (attendees.length === 0 && !isEditing) ) }
               className="w-full sm:flex-1"
             >
               {isEditing ? <Pencil className="mr-2 h-4 w-4" /> : <PlusCircle className="mr-2 h-4 w-4" />}
@@ -221,7 +221,7 @@ export function GroupManager({
                     <div>
                       <p className="font-medium flex items-center">
                         {group.name}
-                        {group.isSystemGroup && 
+                        {group.isSystemGroup &&
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -306,7 +306,7 @@ export function GroupManager({
             </ScrollArea>
           </div>
         )}
-         {groups.filter(g => !g.isSystemGroup).length === 0 && attendees.length > 0 && ( 
+         {groups.filter(g => !g.isSystemGroup).length === 0 && attendees.length > 0 && (
             <p className="text-sm text-muted-foreground text-center py-4">No custom groups created yet. Create one above!</p>
         )}
          {attendees.length === 0 && groups.filter(g => !g.isSystemGroup).length === 0 && (
@@ -316,3 +316,5 @@ export function GroupManager({
     </Card>
   );
 }
+
+    
