@@ -8,56 +8,56 @@ body {
 
 @layer base {
   :root {
-    --background: 120 20% 96%; /* #F2F7F2 - light, airy pastel green */
-    --foreground: 120 10% 20%; /* Dark grayish green for text */
+    --background: 220 50% 98%; /* Very light blue */
+    --foreground: 220 25% 20%; /* Dark navy/grayish blue */
 
-    --card: 120 20% 99%; /* Slightly off-white for cards */
-    --card-foreground: 120 10% 20%; /* Same as main foreground */
+    --card: 220 50% 99%; /* Very light, almost white-blue for cards */
+    --card-foreground: 220 25% 20%; /* Same as main foreground */
 
-    --popover: 120 20% 99%; /* Popovers same as cards */
-    --popover-foreground: 120 10% 20%;
+    --popover: 220 50% 99%; /* Popovers same as cards */
+    --popover-foreground: 220 25% 20%;
 
-    --primary: 127 36% 74%; /* #A7D1AB - vibrant, natural pastel green */
-    --primary-foreground: 120 10% 10%; /* Very dark grayish green for text on primary */
+    --primary: 220 85% 60%; /* Confident, medium blue */
+    --primary-foreground: 220 20% 98%; /* White/very light off-white for text on primary */
 
-    --secondary: 120 15% 92%; /* Lighter green-gray for secondary elements */
-    --secondary-foreground: 120 10% 15%;
+    --secondary: 220 60% 90%; /* Lighter, softer blue */
+    --secondary-foreground: 220 30% 40%; /* Darker blue, readable on secondary */
 
-    --muted: 120 15% 92%; /* Muted backgrounds */
-    --muted-foreground: 120 10% 40%; /* Muted text */
+    --muted: 220 40% 95%; /* Even lighter blue-gray for muted backgrounds */
+    --muted-foreground: 220 20% 50%; /* Grayish blue for muted text */
 
-    --accent: 210 70% 80%; /* #B3D7F2 - pastel blue */
-    --accent-foreground: 210 40% 25%; /* Dark blue for text on accent */
+    --accent: 210 70% 80%; /* #B3D7F2 - pastel blue (kept from previous request) */
+    --accent-foreground: 210 40% 25%; /* Dark blue for text on accent (kept from previous request) */
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 120 15% 88%; /* Slightly darker green-gray for borders */
-    --input: 120 15% 88%; /* Same for input borders */
-    --ring: 210 70% 70%; /* Darker shade of accent for focus rings */
+    --border: 220 30% 88%; /* Light blue-gray for borders */
+    --input: 220 30% 88%; /* Same for input borders */
+    --ring: 220 90% 65%; /* Brighter version of primary blue for focus rings */
 
-    --chart-1: 127 36% 65%;
-    --chart-2: 210 70% 75%; /* Using new accent shade */
-    --chart-3: 120 20% 50%;
-    --chart-4: 127 30% 80%;
-    --chart-5: 210 60% 85%; /* Lighter shade of accent */
+    --chart-1: 220 85% 55%; /* Primary blue shade */
+    --chart-2: 210 70% 75%; /* Accent pastel blue shade */
+    --chart-3: 220 70% 70%; /* A mid-tone blue */
+    --chart-4: 210 60% 85%; /* A lighter accent-like blue */
+    --chart-5: 220 40% 80%; /* A very light blue */
 
     --radius: 0.5rem;
 
-    /* Sidebar colors (keeping for completeness, though not heavily used in this simple app) */
-    --sidebar-background: 120 20% 98%;
-    --sidebar-foreground: 120 10% 25%;
-    --sidebar-primary: 127 36% 70%;
-    --sidebar-primary-foreground: 120 10% 10%;
-    --sidebar-accent: 120 15% 94%;
-    --sidebar-accent-foreground: 120 10% 15%;
-    --sidebar-border: 120 15% 90%;
-    --sidebar-ring: 127 36% 60%;
+    /* Sidebar colors updated to match blue theme */
+    --sidebar-background: 220 45% 97%; /* Light blue for sidebar */
+    --sidebar-foreground: 220 25% 25%; /* Darker blue for sidebar text */
+    --sidebar-primary: 220 80% 65%; /* Primary blue for sidebar interactive elements */
+    --sidebar-primary-foreground: 220 20% 98%; /* Light text for sidebar primary */
+    --sidebar-accent: 220 50% 92%; /* Lighter blue for sidebar accents */
+    --sidebar-accent-foreground: 220 30% 35%; /* Text for sidebar accents */
+    --sidebar-border: 220 30% 90%; /* Sidebar border color */
+    --sidebar-ring: 220 85% 70%; /* Sidebar ring color */
   }
 
   .dark {
-    /* Keeping dark mode for completeness, though not specifically requested */
-    --background: 210 10% 10%; /* Adjusted for blue theme */
+    /* Dark mode remains primarily based on original green/accent blue combination unless further changes are requested */
+    --background: 210 10% 10%; 
     --foreground: 210 10% 90%;
 
     --card: 210 10% 12%;
@@ -66,7 +66,8 @@ body {
     --popover: 210 10% 12%;
     --popover-foreground: 210 10% 90%;
 
-    --primary: 127 36% 65%; /* Original primary green */
+    /* Primary in dark mode could be a vibrant blue or the original green. Let's keep original for now. */
+    --primary: 127 36% 65%; /* Original primary green for dark mode */
     --primary-foreground: 120 10% 95%;
 
     --secondary: 210 10% 20%;
@@ -75,7 +76,7 @@ body {
     --muted: 210 10% 20%;
     --muted-foreground: 210 10% 60%;
 
-    --accent: 210 70% 70%; /* Darker pastel blue for dark mode */
+    --accent: 210 70% 70%; /* Darker pastel blue for dark mode accent */
     --accent-foreground: 210 90% 95%; /* Very light text on dark accent */
 
     --destructive: 0 70% 50%;
@@ -85,16 +86,17 @@ body {
     --input: 210 10% 25%;
     --ring: 210 70% 60%; /* Ring for dark mode accent */
 
-    --chart-1: 127 36% 60%;
+    --chart-1: 127 36% 60%; /* Dark mode chart colors can differ */
     --chart-2: 210 70% 65%;
     --chart-3: 120 20% 45%;
     --chart-4: 127 30% 75%;
     --chart-5: 210 60% 70%;
     
+    /* Sidebar dark mode colors */
     --sidebar-background: 210 10% 12%;
     --sidebar-foreground: 210 10% 85%;
-    --sidebar-primary: 127 36% 60%;
-    --sidebar-primary-foreground: 120 10% 95%;
+    --sidebar-primary: 210 70% 65%; /* A blue for dark sidebar primary */
+    --sidebar-primary-foreground: 210 20% 98%;
     --sidebar-accent: 210 10% 18%;
     --sidebar-accent-foreground: 210 10% 90%;
     --sidebar-border: 210 10% 22%;
