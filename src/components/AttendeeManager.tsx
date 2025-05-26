@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { X, UserPlus, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
 
 interface AttendeeManagerProps {
   attendees: string[];
@@ -14,13 +15,41 @@ interface AttendeeManagerProps {
 }
 
 export function AttendeeManager({ attendees, onAttendeesChange }: AttendeeManagerProps) {
-  const [newAttendeeName, setNewAttendeeName] = useState('');
+  const [newAttendeeInput, setNewAttendeeInput] = useState('');
+  const { toast } = useToast();
 
-  const handleAddAttendee = (e: React.FormEvent) => {
+  const handleAddAttendees = (e: React.FormEvent) => {
     e.preventDefault();
-    if (newAttendeeName.trim() && !attendees.includes(newAttendeeName.trim())) {
-      onAttendeesChange([...attendees, newAttendeeName.trim()]);
-      setNewAttendeeName('');
+    const namesToAdd = newAttendeeInput
+      .split(',')
+      .map(name => name.trim())
+      .filter(name => name !== '');
+
+    if (namesToAdd.length === 0) {
+      toast({
+        title: 'No Names Entered',
+        description: 'Please enter attendee names.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const uniqueNewAttendees = namesToAdd.filter(name => !attendees.includes(name));
+    
+    if (uniqueNewAttendees.length > 0) {
+      onAttendeesChange([...attendees, ...uniqueNewAttendees]);
+      setNewAttendeeInput('');
+      toast({
+        title: 'Attendees Added',
+        description: `${uniqueNewAttendees.join(', ')} added to the picnic.`,
+      });
+    } else if (namesToAdd.length > 0) {
+      toast({
+        title: 'Attendees Already Present',
+        description: 'All entered names are already in the attendee list.',
+        variant: 'default',
+      });
+      setNewAttendeeInput('');
     }
   };
 
@@ -35,20 +64,20 @@ export function AttendeeManager({ attendees, onAttendeesChange }: AttendeeManage
           <Users className="mr-2 h-6 w-6 text-primary" />
           Picnic Attendees
         </CardTitle>
-        <CardDescription>Add or remove participants for the picnic.</CardDescription>
+        <CardDescription>Add participants for the picnic. You can enter multiple names separated by commas.</CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleAddAttendee} className="flex gap-2 mb-4">
+        <form onSubmit={handleAddAttendees} className="flex gap-2 mb-4">
           <Input
             type="text"
-            value={newAttendeeName}
-            onChange={(e) => setNewAttendeeName(e.target.value)}
-            placeholder="Enter attendee name"
+            value={newAttendeeInput}
+            onChange={(e) => setNewAttendeeInput(e.target.value)}
+            placeholder="Enter names, separated by commas"
             className="flex-grow"
-            aria-label="New attendee name"
+            aria-label="New attendee names (comma-separated)"
           />
           <Button type="submit" variant="outline">
-            <UserPlus className="mr-2 h-4 w-4" /> Add Attendee
+            <UserPlus className="mr-2 h-4 w-4" /> Add Attendees
           </Button>
         </form>
         {attendees.length > 0 ? (
