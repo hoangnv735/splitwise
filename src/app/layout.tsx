@@ -13,8 +13,8 @@ const geistSans = Geist({
 // If needed later, it can be re-added.
 
 export const metadata: Metadata = {
-  title: 'SettleUp Picnics',
-  description: 'Easily split expenses for your group picnics.',
+  title: 'Splitwise',
+  description: 'Easily split expenses for your group activities.',
 };
 
 export default function RootLayout({

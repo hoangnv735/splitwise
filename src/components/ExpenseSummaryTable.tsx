@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { FileText, Users, UserCircle, DollarSign, Trash2, Edit, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ExpenseSummaryTableProps {
   expenses: Expense[];
@@ -34,9 +35,9 @@ export function ExpenseSummaryTable({ expenses, onDeleteExpense }: ExpenseSummar
     const csvRows = [
       headers.join(','),
       ...expenses.map(expense => {
-        const participantsString = expense.participants.join('; '); // Use semicolon if names can have commas
+        const participantsString = expense.participants.join('; '); 
         return [
-          `"${expense.description.replace(/"/g, '""')}"`, // Escape double quotes
+          `"${expense.description.replace(/"/g, '""')}"`, 
           expense.amount.toFixed(2),
           `"${expense.paidBy.replace(/"/g, '""')}"`,
           `"${participantsString.replace(/"/g, '""')}"`,
@@ -49,7 +50,7 @@ export function ExpenseSummaryTable({ expenses, onDeleteExpense }: ExpenseSummar
     if (link.download !== undefined) {
       const url = URL.createObjectURL(blob);
       link.setAttribute('href', url);
-      link.setAttribute('download', 'picnic_expenses.csv');
+      link.setAttribute('download', 'splitwise_expenses.csv');
       link.style.visibility = 'hidden';
       document.body.appendChild(link);
       link.click();
@@ -57,7 +58,7 @@ export function ExpenseSummaryTable({ expenses, onDeleteExpense }: ExpenseSummar
       URL.revokeObjectURL(url);
       toast({
         title: 'Export Successful',
-        description: 'Expenses have been exported to picnic_expenses.csv.',
+        description: 'Expenses have been exported to splitwise_expenses.csv.',
       });
     } else {
        toast({
@@ -76,7 +77,7 @@ export function ExpenseSummaryTable({ expenses, onDeleteExpense }: ExpenseSummar
             <FileText className="mr-2 h-6 w-6 text-primary" />
             Expense Summary
           </CardTitle>
-          <CardDescription>A detailed list of all logged picnic expenses.</CardDescription>
+          <CardDescription>A detailed list of all logged expenses.</CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground text-center py-4">No expenses logged yet. Add an expense using the form above.</p>
@@ -93,7 +94,7 @@ export function ExpenseSummaryTable({ expenses, onDeleteExpense }: ExpenseSummar
             <FileText className="mr-2 h-6 w-6 text-primary" />
             Expense Summary
           </CardTitle>
-          <CardDescription>A detailed list of all logged picnic expenses.</CardDescription>
+          <CardDescription>A detailed list of all logged expenses.</CardDescription>
         </div>
         <Button variant="outline" size="sm" onClick={handleExportToCSV}>
           <Download className="mr-2 h-4 w-4" />
@@ -201,7 +202,3 @@ export function ExpenseSummaryTable({ expenses, onDeleteExpense }: ExpenseSummar
     </Card>
   );
 }
-
-// Add TooltipProvider and Tooltip to the imports if not already there
-// (assuming they are in @/components/ui/tooltip)
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';

@@ -1,3 +1,4 @@
+
 'use client';
 
 import type * as React from 'react';
@@ -41,7 +42,7 @@ export function AttendeeManager({ attendees, onAttendeesChange }: AttendeeManage
       setNewAttendeeInput('');
       toast({
         title: 'Attendees Added',
-        description: `${uniqueNewAttendees.join(', ')} added to the picnic.`,
+        description: `${uniqueNewAttendees.join(', ')} added.`,
       });
     } else if (namesToAdd.length > 0) {
       toast({
@@ -62,9 +63,9 @@ export function AttendeeManager({ attendees, onAttendeesChange }: AttendeeManage
       <CardHeader>
         <CardTitle className="flex items-center text-2xl">
           <Users className="mr-2 h-6 w-6 text-primary" />
-          Picnic Attendees
+          Attendees
         </CardTitle>
-        <CardDescription>Add participants for the picnic. You can enter multiple names separated by commas.</CardDescription>
+        <CardDescription>Add participants. You can enter multiple names separated by commas.</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleAddAttendees} className="flex gap-2 mb-4">

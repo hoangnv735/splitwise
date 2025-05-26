@@ -24,7 +24,7 @@ const DEMO_EXPENSES: Omit<Expense, 'id'>[] = [
   { description: 'Coffee & Pastries', amount: 35.50, paidBy: 'Bob', participants: ['Alice', 'Bob', 'Charlie', 'David'] },
   { description: 'Park Entrance Fee', amount: 20, paidBy: 'Charlie', participants: ['Charlie', 'David', 'Eve'] },
   { description: 'Shared Taxi Ride', amount: 25, paidBy: 'David', participants: ['Alice', 'David', 'Eve'] },
-  { description: 'Picnic Blanket & Supplies', amount: 45, paidBy: 'Eve', participants: DEMO_ATTENDEES },
+  { description: 'Activity Supplies', amount: 45, paidBy: 'Eve', participants: DEMO_ATTENDEES },
 ];
 
 
@@ -268,10 +268,6 @@ export default function SettleUpPage() {
                 onClick={handleCalculate} 
                 className="w-full text-lg py-6" 
                 size="lg" 
-                // Disable if:
-                // 1. Cannot calculate (no valid expenses, or no attendees for existing expenses)
-                // AND
-                // 2. It's not the case where there are no expenses AND some attendees (in which case, calculate should just show 0 balances)
                 disabled={!canCalculate && !(expenses.length === 0 && attendees.length > 0)}
               >
                 <Calculator className="mr-2 h-5 w-5" /> Calculate Balances & Settle Up
@@ -286,7 +282,7 @@ export default function SettleUpPage() {
         
       </main>
       <footer className="text-center py-4 mt-auto text-sm text-muted-foreground border-t">
-        SettleUp Picnics &copy; {new Date().getFullYear()}
+        Splitwise App &copy; {new Date().getFullYear()}
       </footer>
     </div>
   );

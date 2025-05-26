@@ -19,7 +19,7 @@ interface GroupManagerProps {
   groups: AttendeeGroup[];
   onAddGroup: (groupName: string, members: string[]) => void;
   onDeleteGroup: (groupId: string) => void;
-  reservedGroupName?: string; // To prevent user from creating group with this name
+  reservedGroupName?: string; 
 }
 
 export function GroupManager({ attendees, groups, onAddGroup, onDeleteGroup, reservedGroupName }: GroupManagerProps) {
@@ -28,8 +28,6 @@ export function GroupManager({ attendees, groups, onAddGroup, onDeleteGroup, res
   const { toast } = useToast();
 
   useEffect(() => {
-    // If attendees list changes, clear selected members for new group creation
-    // as old selections might not be valid anymore.
     setSelectedMembers(prevSelected => prevSelected.filter(member => attendees.includes(member)));
   }, [attendees]);
 
@@ -83,7 +81,7 @@ export function GroupManager({ attendees, groups, onAddGroup, onDeleteGroup, res
           <Users className="mr-2 h-6 w-6 text-primary" />
           Manage Attendee Groups
         </CardTitle>
-        <CardDescription>Create custom groups of attendees. "{reservedGroupName}" is a default group representing all attendees.</CardDescription>
+        <CardDescription>Create custom groups of attendees. "{reservedGroupName}" is a default group representing all current attendees.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <form onSubmit={handleAddGroupSubmit} className="space-y-4 p-4 border rounded-lg">
@@ -175,7 +173,7 @@ export function GroupManager({ attendees, groups, onAddGroup, onDeleteGroup, res
             </ScrollArea>
           </div>
         )}
-         {groups.length === 0 && attendees.length > 0 && ( // Only show if no user groups and attendees exist
+         {groups.length === 0 && attendees.length > 0 && ( 
             <p className="text-sm text-muted-foreground text-center py-4">No custom groups created yet. Create one above!</p>
         )}
          {attendees.length === 0 && (

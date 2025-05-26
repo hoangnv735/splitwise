@@ -1,18 +1,18 @@
-# SettleUp Picnics
+# Splitwise
 
-SettleUp Picnics is a Next.js application designed to simplify expense sharing for group picnics. It allows users to:
+Splitwise (formerly SettleUp Picnics) is a Next.js application designed to simplify expense sharing for group activities. It allows users to:
 
-- List picnic attendees.
+- List activity attendees.
 - Log expenses, specifying who paid and who participated.
 - Get AI-powered suggestions for expense attribution based on descriptions.
 - Calculate individual balances (who owes whom and how much).
 - View optimized transaction lists to minimize the number of payments needed to settle debts.
 
-The application features a clean, user-friendly interface with a nature-inspired pastel color scheme.
+The application features a clean, user-friendly interface.
 
 ## Core Features
 
-- **Attendee Management**: Easily add and remove picnic attendees.
+- **Attendee Management**: Easily add and remove activity attendees.
 - **Expense Input**: A straightforward form to log expenses, including description, amount, payer, and participants.
 - **AI-Powered Expense Attribution**: Leverages a GenAI model to suggest which participants might be associated with an expense based on its description.
 - **Balance Calculation**: Automatically computes how much each attendee owes or is owed.
