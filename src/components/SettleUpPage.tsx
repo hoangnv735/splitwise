@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calculator, TestTubeDiagonal, Save, Upload, FileJson } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Input } from '@/components/ui/input'; // For file input styling if needed
+import { Input } from '@/components/ui/input'; 
 import { Label } from '@/components/ui/label';
 
 
@@ -368,7 +368,7 @@ export default function SettleUpPage() {
   return (
     <div className="flex flex-col min-h-screen">
       <AppHeader />
-      <main className="flex-grow container mx-auto px-4 py-8 space-y-8 max-w-5xl">
+      <main className="flex-grow container mx-auto px-4 py-8 space-y-8 max-w-6xl"> {/* Increased max-width */}
         
         <Card>
           <CardHeader>
@@ -414,22 +414,28 @@ export default function SettleUpPage() {
           reservedGroupName={ALL_ATTENDEES_GROUP_NAME}
         />
         
-        <ExpenseForm 
-          attendees={attendees} 
-          groups={displayedGroups} 
-          onAddExpense={handleAddExpense}
-          onUpdateExpense={handleUpdateExpense}
-          expenseToEdit={expenseToEdit}
-          onCancelEdit={() => setEditingExpenseId(null)}
-        />
-
-        {expenses.length > 0 && (
-          <ExpenseSummaryTable 
-            expenses={expenses} 
-            onDeleteExpense={handleDeleteExpense}
-            onEditExpense={handleSetEditingExpense}
-          />
-        )}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+          <div className="lg:col-span-1"> {/* Ensure ExpenseForm takes one column */}
+            <ExpenseForm 
+              attendees={attendees} 
+              groups={displayedGroups} 
+              onAddExpense={handleAddExpense}
+              onUpdateExpense={handleUpdateExpense}
+              expenseToEdit={expenseToEdit}
+              onCancelEdit={() => handleSetEditingExpense(null)}
+            />
+          </div>
+          {/* ExpenseSummaryTable only rendered if expenses exist, takes the second column on large screens */}
+          {expenses.length > 0 && (
+            <div className="lg:col-span-1"> {/* Ensure ExpenseSummaryTable takes one column */}
+              <ExpenseSummaryTable 
+                expenses={expenses} 
+                onDeleteExpense={handleDeleteExpense}
+                onEditExpense={handleSetEditingExpense}
+              />
+            </div>
+          )}
+        </div>
 
         {(attendees.length > 0 || expenses.length > 0) && (
           <Card className="shadow-lg">
@@ -457,3 +463,4 @@ export default function SettleUpPage() {
     </div>
   );
 }
+
