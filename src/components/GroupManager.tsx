@@ -10,7 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import { X, Users, PlusCircle, Trash2 } from 'lucide-react';
+import { Users, PlusCircle, Trash2, CheckSquare, Square } from 'lucide-react';
 import type { AttendeeGroup } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
@@ -30,6 +30,14 @@ export function GroupManager({ attendees, groups, onAddGroup, onDeleteGroup }: G
     setSelectedMembers(prev =>
       prev.includes(member) ? prev.filter(m => m !== member) : [...prev, member]
     );
+  };
+
+  const handleSelectAllMembers = () => {
+    setSelectedMembers([...attendees]);
+  };
+
+  const handleDeselectAllMembers = () => {
+    setSelectedMembers([]);
   };
 
   const handleAddGroupSubmit = (e: React.FormEvent) => {
@@ -77,7 +85,19 @@ export function GroupManager({ attendees, groups, onAddGroup, onDeleteGroup }: G
             />
           </div>
           <div>
-            <Label>Select Members</Label>
+            <div className="flex justify-between items-center mb-1">
+              <Label>Select Members</Label>
+              {attendees.length > 0 && (
+                <div className="space-x-2">
+                  <Button type="button" variant="outline" size="sm" onClick={handleSelectAllMembers} disabled={attendees.length === 0}>
+                    <CheckSquare className="mr-1 h-3 w-3" /> Select All
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={handleDeselectAllMembers} disabled={attendees.length === 0 || selectedMembers.length === 0}>
+                    <Square className="mr-1 h-3 w-3" /> Deselect All
+                  </Button>
+                </div>
+              )}
+            </div>
             {attendees.length > 0 ? (
               <ScrollArea className="h-32 mt-1 rounded-md border p-2">
                 {attendees.map(attendee => (
@@ -86,6 +106,7 @@ export function GroupManager({ attendees, groups, onAddGroup, onDeleteGroup }: G
                       id={`member-${attendee}`}
                       checked={selectedMembers.includes(attendee)}
                       onCheckedChange={() => handleMemberToggle(attendee)}
+                      aria-label={`Select ${attendee}`}
                     />
                     <Label htmlFor={`member-${attendee}`} className="font-normal">{attendee}</Label>
                   </div>
@@ -95,7 +116,7 @@ export function GroupManager({ attendees, groups, onAddGroup, onDeleteGroup }: G
               <p className="text-sm text-muted-foreground mt-1">Add attendees first to select members for a group.</p>
             )}
           </div>
-          <Button type="submit" disabled={attendees.length === 0}>
+          <Button type="submit" disabled={attendees.length === 0 || !newGroupName.trim()}>
             <PlusCircle className="mr-2 h-4 w-4" /> Add Group
           </Button>
         </form>
@@ -113,6 +134,7 @@ export function GroupManager({ attendees, groups, onAddGroup, onDeleteGroup }: G
                         {group.members.map(member => (
                           <Badge key={member} variant="outline" className="text-xs">{member}</Badge>
                         ))}
+                        {group.members.length === 0 && <Badge variant="destructive" className="text-xs">No valid members</Badge>}
                       </div>
                     </div>
                     <Button
@@ -133,7 +155,11 @@ export function GroupManager({ attendees, groups, onAddGroup, onDeleteGroup }: G
          {groups.length === 0 && attendees.length > 0 && (
             <p className="text-sm text-muted-foreground text-center py-4">No groups created yet. Create one above!</p>
         )}
+         {attendees.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-4">Add attendees to start managing groups.</p>
+        )}
       </CardContent>
     </Card>
   );
 }
+
