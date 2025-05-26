@@ -8,13 +8,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label'; // Added missing import
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import type { Expense, AttendeeGroup } from '@/lib/types';
 import { suggestAttributions } from '@/ai/flows/suggest-attributions';
-import { Wand2, ListPlus, DollarSign, UserCircle, Users, Users2Icon } from 'lucide-react';
+import { Wand2, ListPlus, DollarSign, UserCircle, Users, Users2Icon, Zap } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 const expenseFormSchema = z.object({
@@ -29,13 +30,14 @@ type ExpenseFormValues = z.infer<typeof expenseFormSchema>;
 
 interface ExpenseFormProps {
   attendees: string[];
-  groups: AttendeeGroup[]; // Added groups prop
+  groups: AttendeeGroup[];
   onAddExpense: (expense: Expense) => void;
 }
 
 export function ExpenseForm({ attendees, groups, onAddExpense }: ExpenseFormProps) {
   const { toast } = useToast();
   const [isSuggesting, setIsSuggesting] = useState(false);
+  const [fastInputText, setFastInputText] = useState('');
   
   const form = useForm<ExpenseFormValues>({
     resolver: zodResolver(expenseFormSchema),
@@ -52,18 +54,15 @@ export function ExpenseForm({ attendees, groups, onAddExpense }: ExpenseFormProp
   const watchedSelectedGroupId = form.watch('selectedGroupId');
 
   useEffect(() => {
-    // When attendees list changes, and no group is selected, default participants to all current attendees
     if (!form.getValues('selectedGroupId')) {
       form.setValue('participants', attendees, { shouldValidate: true });
     } else {
-      // If a group was selected, re-evaluate its members against current attendees
       const groupId = form.getValues('selectedGroupId');
       const group = groups.find(g => g.id === groupId);
       if (group) {
         const validMembers = group.members.filter(member => attendees.includes(member));
         form.setValue('participants', validMembers, { shouldValidate: true });
       } else {
-        // Group might have been deleted, or attendees changed such that group is no longer valid
         form.setValue('participants', attendees, {shouldValidate: true});
         form.setValue('selectedGroupId', undefined);
       }
@@ -77,7 +76,6 @@ export function ExpenseForm({ attendees, groups, onAddExpense }: ExpenseFormProp
 
 
   useEffect(() => {
-    // When selectedGroupId changes (user picks a group from dropdown)
     const groupId = form.getValues('selectedGroupId');
     if (groupId) {
       const group = groups.find(g => g.id === groupId);
@@ -86,7 +84,6 @@ export function ExpenseForm({ attendees, groups, onAddExpense }: ExpenseFormProp
         form.setValue('participants', validMembers, { shouldValidate: true });
       }
     } else {
-      // If group is deselected (e.g., "Select all" or "None" option)
       form.setValue('participants', attendees, { shouldValidate: true });
     }
   }, [watchedSelectedGroupId, groups, attendees, form]);
@@ -104,9 +101,7 @@ export function ExpenseForm({ attendees, groups, onAddExpense }: ExpenseFormProp
     }
     setIsSuggesting(true);
     try {
-      // Clear group selection when AI suggestion is used
       form.setValue('selectedGroupId', undefined);
-
       const suggestions = await suggestAttributions({ description, participants: attendees });
       const suggestedParticipants = Object.entries(suggestions)
         .filter(([, score]) => score > 0.5)
@@ -123,7 +118,6 @@ export function ExpenseForm({ attendees, groups, onAddExpense }: ExpenseFormProp
           title: 'No Strong Suggestions',
           description: 'AI could not confidently suggest. Please select manually.',
         });
-        // If no AI suggestions, default back to all attendees
         form.setValue('participants', attendees, { shouldValidate: true });
       }
     } catch (error) {
@@ -137,6 +131,58 @@ export function ExpenseForm({ attendees, groups, onAddExpense }: ExpenseFormProp
       setIsSuggesting(false);
     }
   };
+
+  const handleApplyFastInput = () => {
+    if (!fastInputText.trim()) {
+      toast({ title: 'Fast Entry Empty', description: 'Please enter expense details.', variant: 'destructive' });
+      return;
+    }
+
+    const parts = fastInputText.split(',').map(part => part.trim());
+    if (parts.length !== 3) {
+      toast({
+        title: 'Invalid Fast Entry Format',
+        description: 'Expected: Description, Amount, Payer (e.g., "Snacks, 15.50, Alice")',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const [desc, amountStr, payerName] = parts;
+    const amountNum = parseFloat(amountStr);
+
+    if (!desc) {
+      toast({ title: 'Invalid Fast Entry', description: 'Description cannot be empty.', variant: 'destructive' });
+      return;
+    }
+    if (isNaN(amountNum) || amountNum <= 0) {
+      toast({ title: 'Invalid Fast Entry', description: 'Amount must be a positive number.', variant: 'destructive' });
+      return;
+    }
+    if (!payerName) {
+      toast({ title: 'Invalid Fast Entry', description: 'Payer name cannot be empty.', variant: 'destructive' });
+      return;
+    }
+    if (!attendees.includes(payerName)) {
+      toast({
+        title: 'Invalid Fast Entry Payer',
+        description: `Attendee "${payerName}" not found. Please ensure the payer is in the attendees list.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    form.setValue('description', desc, { shouldValidate: true });
+    form.setValue('amount', amountNum, { shouldValidate: true });
+    form.setValue('paidBy', payerName, { shouldValidate: true });
+
+    toast({
+      title: 'Fast Entry Applied',
+      description: 'Description, Amount, and Payer fields have been updated.',
+    });
+    setFastInputText(''); // Clear the fast input field
+  };
+
 
   function onSubmit(data: ExpenseFormValues) {
     onAddExpense({
@@ -152,8 +198,9 @@ export function ExpenseForm({ attendees, groups, onAddExpense }: ExpenseFormProp
       amount: 0,
       paidBy: '',
       participants: attendees, 
-      selectedGroupId: undefined, // Reset selected group
+      selectedGroupId: undefined,
     });
+    setFastInputText(''); // Also clear fast input on successful full submission
     
     toast({
       title: 'Expense Added',
@@ -171,6 +218,29 @@ export function ExpenseForm({ attendees, groups, onAddExpense }: ExpenseFormProp
         <CardDescription>Log a new expense and assign it to participants or groups.</CardDescription>
       </CardHeader>
       <CardContent>
+        <div className="space-y-3 mb-6 p-4 border rounded-lg bg-secondary/30">
+          <Label htmlFor="fastInput" className="font-semibold flex items-center text-base">
+            <Zap className="mr-2 h-5 w-5 text-accent" /> Fast Expense Entry
+          </Label>
+          <div className="flex items-center gap-2">
+            <Input
+              id="fastInput"
+              type="text"
+              value={fastInputText}
+              onChange={(e) => setFastInputText(e.target.value)}
+              placeholder="e.g., Picnic set, 25.99, Bob"
+              className="flex-grow"
+              aria-label="Fast expense entry: Description, Amount, Payer"
+            />
+            <Button type="button" onClick={handleApplyFastInput} variant="outline" size="sm">
+              Apply
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Enter expense description, amount, and payer name, separated by commas.
+          </p>
+        </div>
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormField
@@ -225,7 +295,6 @@ export function ExpenseForm({ attendees, groups, onAddExpense }: ExpenseFormProp
               )}
             />
 
-            {/* Group Selector */}
             {groups.length > 0 && attendees.length > 0 && (
               <FormField
                 control={form.control}
@@ -248,7 +317,7 @@ export function ExpenseForm({ attendees, groups, onAddExpense }: ExpenseFormProp
                         <SelectItem value="none">All Attendees / Custom</SelectItem>
                         {groups.map(group => (
                           <SelectItem key={group.id} value={group.id}>
-                            {group.name} ({group.members.length} members)
+                            {group.name} ({group.members.length > 0 ? group.members.length : attendees.filter(a => group.isSystemGroup).length } {group.members.length === 1 ? 'member' : 'members'})
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -259,7 +328,6 @@ export function ExpenseForm({ attendees, groups, onAddExpense }: ExpenseFormProp
               />
             )}
             
-            {/* Participants Checkboxes */}
             <FormField
               control={form.control}
               name="participants"
@@ -301,7 +369,6 @@ export function ExpenseForm({ attendees, groups, onAddExpense }: ExpenseFormProp
                                   <Checkbox
                                     checked={field.value?.includes(attendee)}
                                     onCheckedChange={(checked) => {
-                                      // When manually changing checkboxes, clear selected group ID
                                       form.setValue('selectedGroupId', undefined);
                                       return checked
                                         ? field.onChange([...(field.value || []), attendee])
@@ -338,3 +405,7 @@ export function ExpenseForm({ attendees, groups, onAddExpense }: ExpenseFormProp
     </Card>
   );
 }
+
+    
+
+    
