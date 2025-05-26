@@ -42,7 +42,7 @@ export default function SettleUpPage() {
   
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
-  const [layoutMode, setLayoutMode] = useState<'single' | 'dual'>('dual');
+  const [layoutMode, setLayoutMode] = useState<'single' | 'dual'>('single');
 
 
   const { toast } = useToast();
