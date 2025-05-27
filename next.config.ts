@@ -3,6 +3,9 @@ import type {NextConfig} from 'next';
 const nextConfig: NextConfig = {
   /* config options here */
   output: 'export',
+  basePath: "/splitwise",
+  reactStrictMode: true,
+  swcMinify: true,
   typescript: {
     ignoreBuildErrors: true,
   },
